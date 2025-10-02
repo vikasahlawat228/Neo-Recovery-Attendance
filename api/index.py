@@ -309,3 +309,7 @@ def handle_attendance_today():
     data = get_todays_attendance(service, spreadsheet_id)
     status = 500 if 'error' in data else 200
     return jsonify(data), status
+
+# Vercel serverless function entry point
+if __name__ == "__main__":
+    app.run(debug=True)
