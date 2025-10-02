@@ -311,5 +311,5 @@ def handle_attendance_today():
     return jsonify(data), status
 
 # Vercel serverless function entry point
-if __name__ == "__main__":
-    app.run(debug=True)
+def handler(request):
+    return app(request.environ, lambda *args: None)
