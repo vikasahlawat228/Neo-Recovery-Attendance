@@ -1,0 +1,625 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Neo Recovery Attendance - Admin (Backend Version)</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f8f9fa;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+      font-size: 2.5rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    h2 {
+      color: #555;
+      margin: 40px 0 20px 0;
+      font-size: 1.8rem;
+      font-weight: 500;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+    .section {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin: 16px 0;
+      flex-wrap: wrap;
+    }
+    input[type="text"], input[type="month"] {
+      padding: 12px 16px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+    input[type="text"]:focus, input[type="month"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #c82333;
+    }
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 0.9rem;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #dee2e6;
+      padding: 8px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #495057;
+    }
+    th.sticky {
+      position: sticky;
+      left: 0;
+      background: #f8f9fa;
+      z-index: 10;
+      box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+    }
+    td.name {
+      position: sticky;
+      left: 0;
+      background: white;
+      font-weight: 500;
+      text-align: left;
+      z-index: 5;
+    }
+    .attendance-grid {
+      overflow: auto;
+      max-height: 600px;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+    }
+    .employee-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .employee-header {
+      display: grid;
+      grid-template-columns: 60px 1fr auto;
+      gap: 12px;
+      padding: 8px 12px;
+      font-weight: 600;
+      color: #495057;
+      border-bottom: 2px solid #e9ecef;
+      margin-bottom: 8px;
+    }
+    .employee-header .actions {
+      text-align: right;
+    }
+    .employee-item {
+      display: grid;
+      grid-template-columns: 60px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      background: #f8f9fa;
+      transition: background-color 0.2s ease;
+    }
+    .employee-item:hover {
+      background-color: #f1f3f5;
+    }
+    .employee-item input {
+      flex: 1;
+      margin: 0;
+    }
+    .employee-id {
+      font-weight: 600;
+      color: #667eea;
+      min-width: 40px;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #6c757d;
+    }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-weight: 500;
+    }
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 600;
+      color: #667eea;
+    }
+    .stat-label {
+      color: #6c757d;
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+    .auth-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      backdrop-filter: blur(5px);
+    }
+    .auth-box {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .auth-box h3 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: #333;
+    }
+    .auth-box input {
+      margin-top: 20px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .auth-box button {
+      margin-top: 20px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-box">
+      <h3>🔒 Admin Access</h3>
+      <input id="password" type="password" placeholder="Enter password" />
+      <button id="loginBtn" class="btn-primary">Login</button>
+    </div>
+  </div>
+
+  <div class="container" style="display: none;">
+    <h1>🏢 Neo Recovery Attendance</h1>
+    <h2 style="text-align: center; color: #666; margin-bottom: 40px;">Admin Dashboard</h2>
+    
+    <!-- Stats Section -->
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-number" id="totalEmployees">-</div>
+        <div class="stat-label">Total Employees</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="activeEmployees">-</div>
+        <div class="stat-label">Active Employees</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="todayAttendance">-</div>
+        <div class="stat-label">Today's Attendance</div>
+      </div>
+    </div>
+
+    <!-- Employee Management Section -->
+    <div class="section">
+      <h2>👥 Employee Management</h2>
+      
+      <div class="row">
+        <input id="newName" placeholder="Enter employee name" style="flex: 1;" />
+        <button id="addBtn" class="btn-primary">➕ Add Employee</button>
+      </div>
+      
+      <div id="message"></div>
+      
+      <div id="empList" class="loading">
+        <div class="spinner"></div>
+        <div>Loading employees...</div>
+      </div>
+    </div>
+
+    <!-- Attendance Dashboard Section -->
+    <div class="section">
+      <h2>📊 Attendance Dashboard</h2>
+      
+      <div class="row">
+        <label for="month" style="font-weight: 500;">Select Month:</label>
+        <input id="month" type="month" />
+        <button id="load" class="btn-primary">📅 Load Data</button>
+        <button id="export" class="btn-secondary">📄 Export CSV</button>
+      </div>
+      
+      <div class="attendance-grid">
+        <table id="grid">
+          <tbody>
+            <tr>
+              <td colspan="100" class="loading">
+                <div class="spinner"></div>
+                <div>Select a month to view attendance data</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="api-backend.js"></script>
+  <script>
+    let currentMonthData = null;
+
+    async function refreshEmployees() {
+      try {
+        const list = document.getElementById('empList');
+        list.innerHTML = '<div class="spinner"></div><div>Loading employees...</div>';
+        
+        const emps = await apiGet('employees');
+        
+        if (!Array.isArray(emps)) {
+            throw new Error(emps.error || "Invalid data from server");
+        }
+
+        updateStats(emps);
+        
+        if (emps.length === 0) {
+          list.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 40px;">No employees found. Add your first employee above.</div>';
+          return;
+        }
+        
+        list.innerHTML = `
+          <div class="employee-header">
+            <div>ID</div>
+            <div>Name</div>
+            <div class="actions">Actions</div>
+          </div>
+        `;
+        const ul = document.createElement('ul');
+        ul.className = 'employee-list';
+        emps.forEach(emp => {
+          const li = document.createElement('li');
+          li.className = 'employee-item';
+          li.innerHTML = `
+            <div class="employee-id">#${emp.id}</div>
+            <input value="${emp.name}" data-id="${emp.id}" placeholder="Employee name" />
+            <div>
+              <button data-act="save" data-id="${emp.id}" class="btn-primary btn-small">💾 Save</button>
+              <button data-act="del" data-id="${emp.id}" class="btn-danger btn-small">🗑️ Remove</button>
+            </div>
+          `;
+          ul.appendChild(li);
+        });
+        list.appendChild(ul);
+        
+        // Add event delegation for buttons
+        list.onclick = async (ev) => {
+          const id = ev.target.getAttribute('data-id');
+          const act = ev.target.getAttribute('data-act');
+          if (!id || !act) return;
+          
+          if (act === 'save') {
+            const name = list.querySelector(`input[data-id="${id}"]`).value.trim();
+            if (!name) {
+              showMessage('Employee name cannot be empty', 'error');
+              return;
+            }
+            try {
+              await apiPut('employees', id, { name });
+              showMessage(`Employee #${id} updated successfully`, 'success');
+              await refreshEmployees();
+            } catch (error) {
+              showMessage('Failed to update employee', 'error');
+            }
+          } else if (act === 'del') {
+            if (confirm(`Are you sure you want to remove employee #${id}?`)) {
+              try {
+                await apiDelete('employees', id);
+                showMessage(`Employee #${id} removed successfully`, 'success');
+                await refreshEmployees();
+              } catch (error) {
+                showMessage('Failed to remove employee', 'error');
+              }
+            }
+          }
+        };
+      } catch (error) {
+        document.getElementById('empList').innerHTML = `<div style="text-align: center; color: #dc3545; padding: 40px;">Failed to load employees. ${error.message}</div>`;
+      }
+    }
+
+    function updateStats(employees) {
+      document.getElementById('totalEmployees').textContent = employees.length;
+      document.getElementById('activeEmployees').textContent = employees.length; // All returned employees are active
+      
+      // Calculate today's attendance (this would need to be implemented in the API)
+      // For now, we'll show a placeholder
+      updateTodaysAttendance();
+    }
+
+    async function updateTodaysAttendance() {
+      try {
+        const result = await apiGet('attendance/today');
+        if (result.ok) {
+          document.getElementById('todayAttendance').textContent = result.count;
+        } else {
+          document.getElementById('todayAttendance').textContent = 'Error';
+        }
+      } catch (error) {
+        console.error("Failed to get today's attendance:", error);
+        document.getElementById('todayAttendance').textContent = 'N/A';
+      }
+    }
+
+    async function loadMonth() {
+      const month = document.getElementById('month').value;
+      if (!month) {
+        showMessage('Please select a month', 'error');
+        return;
+      }
+      
+      try {
+        const table = document.getElementById('grid');
+        table.innerHTML = '<tbody><tr><td colspan="100" class="loading"><div class="spinner"></div><div>Loading attendance data...</div></td></tr></tbody>';
+        
+        const result = await apiGet('attendance', { month: month });
+        currentMonthData = result;
+        
+        if (!result.ok) {
+          throw new Error(result.error || 'Failed to load data');
+        }
+        
+        const days = result.daysInMonth;
+        const rows = result.rows;
+        
+        // Build table header
+        let html = '<thead><tr><th class="sticky">Employee</th>';
+        for (let d = 1; d <= days; d++) {
+          html += `<th>${d}</th>`;
+        }
+        html += '</tr></thead>';
+        
+        // Build table rows
+        html += '<tbody>';
+        rows.forEach(row => {
+          html += `<tr><td class="name">${row.name}</td>`;
+          for (let d = 1; d <= days; d++) {
+            const time = row[d] || '';
+            html += `<td>${time}</td>`;
+          }
+          html += '</tr>';
+        });
+        
+        html += '</tbody>';
+        table.innerHTML = html;
+        
+        showMessage(`Loaded attendance data for ${month}`, 'success');
+      } catch (error) {
+        const table = document.getElementById('grid');
+        table.innerHTML = `<tbody><tr><td colspan="100" style="text-align: center; color: #dc3545; padding: 40px;">Failed to load attendance data. ${error.message}</td></tr></tbody>`;
+        showMessage('Failed to load attendance data', 'error');
+      }
+    }
+
+    function exportToCSV() {
+      if (!currentMonthData || !currentMonthData.ok) {
+        showMessage('No data to export. Please load a month first.', 'error');
+        return;
+      }
+      
+      const month = document.getElementById('month').value;
+      const days = currentMonthData.daysInMonth;
+      const rows = currentMonthData.rows;
+      
+      // Create CSV content
+      let csv = 'Employee Name';
+      for (let d = 1; d <= days; d++) {
+        csv += `,Day ${d}`;
+      }
+      csv += '\n';
+      
+      rows.forEach(row => {
+        csv += `"${row.name}"`;
+        for (let d = 1; d <= days; d++) {
+          csv += `,"${row[d] || ''}"`;
+        }
+        csv += '\n';
+      });
+      
+      // Download CSV
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `attendance-${month}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      showMessage('CSV exported successfully', 'success');
+    }
+
+    function showMessage(text, type = 'info') {
+      const msgEl = document.getElementById('message');
+      msgEl.textContent = text;
+      msgEl.className = `message ${type}`;
+      
+      // Auto-hide success messages
+      if (type === 'success') {
+        setTimeout(() => {
+          msgEl.textContent = '';
+          msgEl.className = '';
+        }, 3000);
+      }
+    }
+
+    // Event listeners
+    document.getElementById('addBtn').onclick = async () => {
+      const name = document.getElementById('newName').value.trim();
+      if (!name) {
+        showMessage('Please enter an employee name', 'error');
+        return;
+      }
+      
+      try {
+        const result = await apiPost('employees', { name });
+        if (result.ok) {
+          showMessage(`Employee "${name}" added successfully`, 'success');
+          document.getElementById('newName').value = '';
+          await refreshEmployees();
+        } else {
+          showMessage(result.error || 'Failed to add employee', 'error');
+        }
+      } catch (error) {
+        showMessage('Failed to add employee. Please try again.', 'error');
+      }
+    };
+
+    document.getElementById('load').onclick = loadMonth;
+    document.getElementById('export').onclick = exportToCSV;
+    document.getElementById('month').onchange = loadMonth;
+
+    // Initialize current month
+    (function initMonth() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      document.getElementById('month').value = `${yyyy}-${mm}`;
+    })();
+
+    // Initialize the app
+    (async function init() {
+      await refreshEmployees();
+      await loadMonth();
+    })();
+
+    // Password Protection
+    (function handleAuth() {
+      const ADMIN_PASSWORD = "Admin123"; // Plaintext password, not for production
+      const overlay = document.getElementById('authOverlay');
+      const container = document.querySelector('.container');
+      const passwordInput = document.getElementById('password');
+      const loginBtn = document.getElementById('loginBtn');
+
+      function checkAuth() {
+        if (sessionStorage.getItem('isAdminAuthenticated') === 'true') {
+          overlay.style.display = 'none';
+          container.style.display = 'block';
+        } else {
+          overlay.style.display = 'flex';
+          container.style.display = 'none';
+        }
+      }
+
+      function login() {
+        if (passwordInput.value === ADMIN_PASSWORD) {
+          sessionStorage.setItem('isAdminAuthenticated', 'true');
+          checkAuth();
+        } else {
+          alert('Incorrect password!');
+          passwordInput.value = '';
+        }
+      }
+      
+      loginBtn.addEventListener('click', login);
+      passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          login();
+        }
+      });
+      
+      checkAuth();
+    })();
+  </script>
+</body>
+</html>

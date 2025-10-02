@@ -1,0 +1,390 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Neo Recovery Attendance - Kiosk (Backend Version)</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+      font-size: 2.5rem;
+      font-weight: 600;
+    }
+    .form-group {
+      margin-bottom: 24px;
+      text-align: left;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #555;
+      font-size: 1.1rem;
+    }
+    select {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 1.2rem;
+      background: white;
+      transition: border-color 0.3s ease;
+    }
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .btn {
+      font-size: 1.5rem;
+      padding: 20px 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      width: 100%;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+    .btn:active {
+      transform: translateY(0);
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    #msg {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 500;
+      min-height: 20px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    .loading {
+      display: none;
+      margin-top: 20px;
+    }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .search-box {
+      margin-bottom: 16px;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #f8f9fa;
+    }
+    .search-box input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+    }
+    .proxy-status {
+      background: #e8f5e8;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+    .offline-status {
+      background: #fff3e0;
+      color: #e65100;
+      border: 1px solid #ffcc80;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏢 Neo Recovery</h1>
+    <h2 style="color: #666; margin-bottom: 30px;">Mark Attendance</h2>
+    
+    <div class="proxy-status">
+      🔄 Connected to Secure Local Backend (localhost:8081)
+    </div>
+    <div id="offlineStatus" class="proxy-status offline-status" style="display: none;">
+      🌐 You are offline. Attendance will be synced when you're back online.
+    </div>
+    <div id="syncStatus" class="proxy-status" style="display: none;"></div>
+
+    <div class="form-group">
+      <label for="search">Search Employee</label>
+      <div class="search-box">
+        <input type="text" id="search" placeholder="Type to search employees..." />
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label for="emp">Select Employee</label>
+      <select id="emp">
+        <option value="">Loading employees...</option>
+      </select>
+    </div>
+    
+    <button class="btn" id="mark">✅ Mark Present</button>
+    
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+    </div>
+    
+    <div id="msg"></div>
+  </div>
+
+  <script src="api-backend.js"></script>
+  <script>
+    let allEmployees = [];
+    let filteredEmployees = [];
+
+    async function init() {
+      try {
+        showLoading(true);
+        const data = await apiGet('employees');
+        if (Array.isArray(data)) {
+            allEmployees = data;
+            filteredEmployees = data;
+        } else {
+            console.error("Received non-array data for employees:", data);
+            allEmployees = [];
+            filteredEmployees = [];
+            showMessage(data.error || 'Failed to load employees: Invalid data format.', 'error');
+        }
+        populateEmployeeSelect();
+        
+        // Try to sync any pending offline attendance
+        syncOfflineAttendance();
+      } catch (error) {
+        showMessage('Failed to load employees. Please check your connection or server status.', 'error');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function populateEmployeeSelect() {
+      const select = document.getElementById('emp');
+      select.innerHTML = '';
+      
+      if (!Array.isArray(filteredEmployees) || filteredEmployees.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No employees found';
+        select.appendChild(option);
+        return;
+      }
+      
+      filteredEmployees.forEach(emp => {
+        const option = document.createElement('option');
+        option.value = emp.id;
+        option.textContent = `${emp.id} — ${emp.name}`;
+        select.appendChild(option);
+      });
+    }
+
+    function filterEmployees(searchTerm) {
+      if (!Array.isArray(allEmployees)) return;
+      if (!searchTerm.trim()) {
+        filteredEmployees = allEmployees;
+      } else {
+        filteredEmployees = allEmployees.filter(emp => 
+          emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          emp.id.toString().includes(searchTerm)
+        );
+      }
+      populateEmployeeSelect();
+    }
+
+    function showLoading(show) {
+      document.getElementById('loading').style.display = show ? 'block' : 'none';
+      document.getElementById('mark').disabled = show;
+    }
+
+    function showMessage(text, type = 'info') {
+      const msgEl = document.getElementById('msg');
+      msgEl.textContent = text;
+      msgEl.className = type;
+    }
+
+    // Event listeners
+    document.getElementById('search').addEventListener('input', (e) => {
+      filterEmployees(e.target.value);
+    });
+
+    document.getElementById('mark').onclick = async () => {
+      const id = document.getElementById('emp').value;
+      if (!id) {
+        showMessage('Please select an employee', 'error');
+        return;
+      }
+
+      try {
+        showLoading(true);
+        const result = await apiPost('attendance', { employee_id: Number(id) });
+        
+        if (result.ok && result.marked_at) {
+          showMessage(`✅ Attendance marked successfully at ${result.marked_at}`, 'success');
+          clearSelection();
+        } else if (result.message === 'already marked') {
+          showMessage('ℹ️ Already marked for today', 'info');
+        } else {
+          showMessage(result.error || 'Unable to mark attendance. Please try again.', 'error');
+        }
+      } catch (error) {
+        showMessage('Network error. Saving attendance to sync later.', 'info');
+        queueOfflineAttendance(Number(id));
+      } finally {
+        showLoading(false);
+      }
+    };
+
+    function clearSelection() {
+      setTimeout(() => {
+        document.getElementById('emp').value = '';
+        document.getElementById('search').value = '';
+        filterEmployees('');
+      }, 2000);
+    }
+
+    function getOfflineQueue() {
+      return JSON.parse(localStorage.getItem('offlineAttendanceQueue') || '[]');
+    }
+
+    function setOfflineQueue(queue) {
+      localStorage.setItem('offlineAttendanceQueue', JSON.stringify(queue));
+    }
+
+    function queueOfflineAttendance(employeeId) {
+      const queue = getOfflineQueue();
+      const record = {
+        id: `offline-${Date.now()}`,
+        employee_id: employeeId
+      };
+      queue.push(record);
+      setOfflineQueue(queue);
+      updateSyncStatus();
+      clearSelection();
+    }
+
+    async function syncOfflineAttendance() {
+      const queue = getOfflineQueue();
+      if (queue.length === 0) {
+        updateSyncStatus();
+        return;
+      }
+      
+      updateSyncStatus(true);
+      
+      let failedSyncs = 0;
+      
+      for (const record of queue) {
+        try {
+          await apiPost('attendance', { employee_id: record.employee_id });
+          // If successful, remove it from the queue
+          const currentQueue = getOfflineQueue();
+          const newQueue = currentQueue.filter(r => r.id !== record.id);
+          setOfflineQueue(newQueue);
+        } catch (error) {
+          console.warn(`Failed to sync record ${record.id}. It will be retried later.`);
+          failedSyncs++;
+        }
+      }
+      
+      updateSyncStatus();
+      
+      if (failedSyncs === 0 && getOfflineQueue().length === 0) {
+        document.getElementById('syncStatus').textContent = '✅ All pending attendance synced!';
+        setTimeout(() => {
+            document.getElementById('syncStatus').style.display = 'none';
+        }, 3000);
+      }
+    }
+
+    function updateSyncStatus(isSyncing = false) {
+        const queue = getOfflineQueue();
+        const syncStatusEl = document.getElementById('syncStatus');
+        if (queue.length > 0) {
+            syncStatusEl.style.display = 'block';
+            if (isSyncing) {
+                syncStatusEl.textContent = `🔄 Syncing ${queue.length} pending attendance...`;
+            } else {
+                syncStatusEl.textContent = `📝 ${queue.length} attendance records pending sync.`;
+            }
+        } else {
+            syncStatusEl.style.display = 'none';
+        }
+    }
+
+    function updateOnlineStatus() {
+        const offlineStatusEl = document.getElementById('offlineStatus');
+        if (navigator.onLine) {
+            offlineStatusEl.style.display = 'none';
+            syncOfflineAttendance(); // Attempt to sync when back online
+        } else {
+            offlineStatusEl.style.display = 'block';
+        }
+    }
+    
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
+    // Initialize the app
+    init();
+    updateOnlineStatus();
+  </script>
+</body>
+</html>
