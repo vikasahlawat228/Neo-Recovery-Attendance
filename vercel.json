@@ -1,10 +1,19 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.py": {
-      "runtime": "@vercel/python"
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "*.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "api-backend.js",
+      "use": "@vercel/static"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/api/(.*)",
@@ -12,7 +21,11 @@
     },
     {
       "src": "/admin",
-      "dest": "/admin.html"
+      "dest": "admin.html"
+    },
+    {
+      "src": "/",
+      "dest": "index.html"
     }
   ]
 }
