@@ -7,6 +7,7 @@ import json
 import os
 import calendar
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -106,8 +107,9 @@ def mark_attendance(service, spreadsheet_id, employee_id):
         if not employee:
             return {"ok": False, "error": "Employee not found or inactive"}
 
-        # 2. Get current date and time
-        now = datetime.now()
+        # 2. Get current date and time in IST
+        tz = ZoneInfo("Asia/Kolkata")
+        now = datetime.now(tz)
         date_iso = now.strftime('%Y-%m-%d')
         time_hhmm = now.strftime('%H:%M')
 
@@ -236,7 +238,9 @@ def get_attendance_matrix(service, spreadsheet_id, month):
 def get_todays_attendance(service, spreadsheet_id):
     """Counts the number of attendance entries for the current day."""
     try:
-        now = datetime.now()
+        # Get current date in IST
+        tz = ZoneInfo("Asia/Kolkata")
+        now = datetime.now(tz)
         date_iso = now.strftime('%Y-%m-%d')
         
         result = service.values().get(
