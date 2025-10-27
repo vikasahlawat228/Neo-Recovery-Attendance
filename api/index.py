@@ -223,7 +223,15 @@ def mark_logout(service, spreadsheet_id, employee_id, latitude=None, longitude=N
                 # If session check fails, log it but don't block logout - the main check is if employee logged in today
                 app.logger.warning(f"Device session check failed for device {device_id}, employee {employee_id}: {session_check.get('error', 'Unknown error')}")
             elif session_check["exists"] and session_check["employee_id"] != int(employee_id):
-                error_msg = f"You are logged in as employee #{session_check['employee_id']} and cannot logout as employee #{employee_id}. Please use the same device you used to log in."
+                # Get the name of the employee who is actually logged in
+                logged_in_employee = get_employee_by_id(service, spreadsheet_id, session_check["employee_id"])
+                logged_in_name = logged_in_employee["name"] if logged_in_employee else f"employee #{session_check['employee_id']}"
+                
+                # Get the name of the employee trying to logout
+                current_employee = get_employee_by_id(service, spreadsheet_id, int(employee_id))
+                current_name = current_employee["name"] if current_employee else f"employee #{employee_id}"
+                
+                error_msg = f"You are logged in as {logged_in_name} today and can only logout for {logged_in_name} today!"
                 app.logger.info(f"Blocking logout: {error_msg}")
                 return {"ok": False, "error": error_msg}
 
@@ -384,10 +392,6 @@ def get_attendance_week(service, spreadsheet_id, week_start_date):
                 # Find which day of the week this is (0-6)
                 day_index = week_dates.index(date_str)
                 
-                # Debug: Check for Oct 28 data
-                if date_str == '2025-10-28':
-                    print(f"DEBUG WEEK: Found Oct 28 data for emp_id {emp_id}: arrival={arrival_time}, logout={logout_time}, day_index={day_index}")
-                
                 # Format: "HH:MM - HH:MM" or just "HH:MM" if no logout
                 if logout_time and logout_time.strip():
                     time_display = f"{arrival_time} - {logout_time}"
@@ -395,9 +399,6 @@ def get_attendance_week(service, spreadsheet_id, week_start_date):
                     time_display = arrival_time
                 
                 attendance_data[f"{emp_id}|{day_index}"] = time_display
-                
-                if date_str == '2025-10-28':
-                    print(f"DEBUG WEEK: Stored time_display for Oct 28: {time_display}")
 
         matrix_rows = []
         for emp_id, name in emp_map.items():
@@ -412,54 +413,35 @@ def get_attendance_week(service, spreadsheet_id, week_start_date):
         return {"ok": False, "error": "Failed to get weekly attendance data.", "details": str(e)}
 
 def get_attendance_day(service, spreadsheet_id, date):
-    """Gets the daily attendance data with login and logout times."""
+    """Gets the daily attendance data with login and logout times - using same logic as week view."""
     try:
         employees = get_employees(service, spreadsheet_id)
         if isinstance(employees, dict) and "error" in employees:
             return employees # Propagate error
         emp_map = {emp['id']: emp['name'] for emp in employees}
         
-        # Read all columns including logout_time (column F)
+        # Read all columns including logout_time (column F) - same as week view
         result = service.values().get(spreadsheetId=spreadsheet_id, range='Attendance!A:F').execute()
         rows = result.get('values', [])
         
         attendance_data = {}
-        print(f"DEBUG: Looking for attendance data for date: {date}")
-        print(f"DEBUG: Total rows from sheet: {len(rows)}")
         
-        # Debug: Show first few rows to understand the data format
-        print(f"DEBUG: First 5 rows from sheet:")
-        for i, row in enumerate(rows[1:6]):  # Show first 5 data rows
-            print(f"  Row {i+1}: {row}")
-        
+        # Process attendance data - same logic as week view
         for row in rows[1:]:
-            if len(row) >= 4:
-                row_date = row[0]
-                print(f"DEBUG: Row date: '{row_date}', looking for: '{date}', match: {row_date == date}")
+            if len(row) >= 4 and row[0] == date:  # Only match the specific date
+                emp_id = row[1]
+                arrival_time = row[3]  # arrival_time is in column D (index 3)
+                logout_time = row[5] if len(row) > 5 else ''  # logout_time is in column F (index 5)
                 
-                # Try exact match first
-                if row_date == date:
-                    emp_id = row[1]
-                    arrival_time = row[3]  # arrival_time is in column D (index 3)
-                    logout_time = row[5] if len(row) > 5 else ''  # logout_time is in column F (index 5)
-                    
-                    print(f"DEBUG: Found attendance for emp_id {emp_id}: arrival={arrival_time}, logout={logout_time}")
-                    
-                    # Format: "HH:MM - HH:MM" or just "HH:MM" if no logout
-                    if logout_time and logout_time.strip():
-                        time_display = f"{arrival_time} - {logout_time}"
-                    else:
-                        time_display = arrival_time
-                    
-                    attendance_data[emp_id] = time_display
-                    print(f"DEBUG: Stored time_display: {time_display}")
+                # Format: "HH:MM - HH:MM" or just "HH:MM" if no logout - same as week view
+                if logout_time and logout_time.strip():
+                    time_display = f"{arrival_time} - {logout_time}"
                 else:
-                    # Debug: Check if it's a date format issue
-                    if row_date and len(row_date) >= 10:
-                        print(f"DEBUG: Date format check - row_date: '{row_date}' (len: {len(row_date)}), target: '{date}' (len: {len(date)})")
-        
-        print(f"DEBUG: Final attendance_data: {attendance_data}")
+                    time_display = arrival_time
+                
+                attendance_data[emp_id] = time_display
 
+        # Create matrix rows - same structure as week view but only one day (index 0)
         matrix_rows = []
         for emp_id, name in emp_map.items():
             row_data = {"id": emp_id, "name": name, "0": attendance_data.get(emp_id, "")}
