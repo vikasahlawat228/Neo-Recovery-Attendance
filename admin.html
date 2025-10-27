@@ -6,244 +6,354 @@
   <title>Neo Recovery Attendance - Admin (Backend Version)</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>">
   <style>
+    /* Corporate Design System Variables */
+    :root {
+      --primary-navy: #1e3a8a;
+      --primary-blue: #2563eb;
+      --accent-blue: #3b82f6;
+      --success-green: #10b981;
+      --error-red: #ef4444;
+      --warning-orange: #f59e0b;
+      --gray-50: #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-300: #cbd5e1;
+      --gray-400: #94a3b8;
+      --gray-500: #64748b;
+      --gray-600: #475569;
+      --gray-700: #334155;
+      --gray-800: #1e293b;
+      --gray-900: #0f172a;
+      --white: #ffffff;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      --radius-sm: 0.375rem;
+      --radius-md: 0.5rem;
+      --radius-lg: 0.75rem;
+      --radius-xl: 1rem;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       margin: 0;
-      padding: 24px;
-      background: #f8f9fa;
+      padding: 0;
+      background: var(--gray-50);
       min-height: 100vh;
+      color: var(--gray-800);
+      line-height: 1.6;
     }
     .container {
       max-width: 1200px;
       margin: 0 auto;
+      padding: 1rem;
     }
+
     h1 {
-      color: #333;
-      margin-bottom: 30px;
-      font-size: 2.5rem;
-      font-weight: 600;
+      color: var(--gray-800);
+      margin-bottom: 0.5rem;
+      font-size: 2rem;
+      font-weight: 700;
       text-align: center;
+      line-height: 1.2;
     }
+
     h2 {
-      color: #555;
-      margin: 40px 0 20px 0;
-      font-size: 1.8rem;
-      font-weight: 500;
-      border-bottom: 2px solid #667eea;
-      padding-bottom: 10px;
+      color: var(--gray-700);
+      margin: 2rem 0 1rem 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      border-bottom: 2px solid var(--accent-blue);
+      padding-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
     .section {
-      background: white;
-      border-radius: 12px;
-      padding: 30px;
-      margin-bottom: 30px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--gray-200);
     }
+
     .row {
       display: flex;
-      gap: 12px;
+      gap: 0.75rem;
       align-items: center;
-      margin: 16px 0;
+      margin: 1rem 0;
       flex-wrap: wrap;
     }
-    input[type="text"], input[type="month"], input[type="time"] {
-      padding: 12px 16px;
-      border: 2px solid #e1e5e9;
-      border-radius: 8px;
-      font-size: 1rem;
-      transition: border-color 0.3s ease;
+
+    input[type="text"], input[type="month"], input[type="time"], select {
+      padding: 0.75rem 1rem;
+      border: 2px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+      background: var(--white);
+      color: var(--gray-800);
+      min-height: 44px;
     }
-    input[type="text"]:focus, input[type="month"]:focus, input[type="time"]:focus {
+
+    input[type="text"]:focus, input[type="month"]:focus, input[type="time"]:focus, select:focus {
       outline: none;
-      border-color: #667eea;
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
     button {
-      padding: 12px 24px;
+      padding: 0.75rem 1.5rem;
       border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 500;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
     }
+
     .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      background: var(--primary-navy);
+      color: var(--white);
     }
+
     .btn-primary:hover {
+      background: var(--primary-blue);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      box-shadow: var(--shadow-lg);
     }
+
     .btn-secondary {
-      background: #6c757d;
-      color: white;
+      background: var(--gray-500);
+      color: var(--white);
     }
+
     .btn-secondary:hover {
-      background: #5a6268;
+      background: var(--gray-600);
     }
+
     .btn-danger {
-      background: #dc3545;
-      color: white;
+      background: var(--error-red);
+      color: var(--white);
     }
+
     .btn-danger:hover {
-      background: #c82333;
+      background: #dc2626;
     }
+
     .btn-small {
-      padding: 6px 12px;
-      font-size: 0.9rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      min-height: 36px;
     }
     table {
       border-collapse: collapse;
       width: 100%;
-      font-size: 14px;
-      margin-top: 20px;
+      font-size: 0.875rem;
+      margin-top: 1rem;
+      background: var(--white);
     }
+
     th, td {
-      border: 1px solid #dee2e6;
-      padding: 8px;
+      border: 1px solid var(--gray-200);
+      padding: 0.75rem 0.5rem;
       text-align: center;
       white-space: nowrap;
     }
+
     th {
-      background: #f8f9fa;
+      background: var(--gray-50);
       font-weight: 600;
-      color: #495057;
+      color: var(--gray-700);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
+
     th.sticky {
       position: sticky;
       left: 0;
-      background: #f8f9fa;
+      background: var(--gray-50);
       z-index: 10;
       box-shadow: 2px 0 4px rgba(0,0,0,0.1);
     }
+
     td.name {
       position: sticky;
       left: 0;
-      background: white;
+      background: var(--white);
       font-weight: 500;
       text-align: left;
       z-index: 5;
+      color: var(--gray-800);
     }
+
     td.late-arrival, td.early-departure {
-      background-color: #ffebee !important;
-      color: #c62828;
+      background-color: #fef2f2 !important;
+      color: var(--error-red);
       font-weight: 500;
     }
+
     td.early-departure::after {
       content: " 🏃";
     }
+
     /* Style for attendance cells with times */
     td:not(.name) {
       min-width: 80px;
     }
+
     /* Style for cells with both login and logout */
     td:not(.name):not(:empty) {
       text-align: center;
-      padding: 6px 4px;
+      padding: 0.5rem 0.25rem;
     }
+
     .attendance-grid {
       overflow: auto;
       max-height: 600px;
-      border: 1px solid #dee2e6;
-      border-radius: 8px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      background: var(--white);
     }
     .employee-list {
       list-style: none;
       padding: 0;
       margin: 0;
     }
+
     .employee-header {
       display: grid;
       grid-template-columns: 60px 1fr auto;
-      gap: 12px;
-      padding: 8px 12px;
+      gap: 0.75rem;
+      padding: 0.75rem;
       font-weight: 600;
-      color: #495057;
-      border-bottom: 2px solid #e9ecef;
-      margin-bottom: 8px;
+      color: var(--gray-700);
+      border-bottom: 2px solid var(--gray-200);
+      margin-bottom: 0.5rem;
+      background: var(--gray-50);
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
+
     .employee-header .actions {
       text-align: right;
     }
+
     .employee-item {
       display: grid;
       grid-template-columns: 60px 1fr auto;
-      gap: 12px;
+      gap: 0.75rem;
       align-items: center;
-      padding: 8px 12px;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      background: #f8f9fa;
-      transition: background-color 0.2s ease;
+      padding: 0.75rem;
+      border-radius: var(--radius-md);
+      margin-bottom: 0.5rem;
+      background: var(--gray-50);
+      transition: all 0.2s ease;
+      border: 1px solid var(--gray-200);
     }
+
     .employee-item:hover {
-      background-color: #f1f3f5;
+      background-color: var(--gray-100);
+      border-color: var(--gray-300);
     }
+
     .employee-item input {
       flex: 1;
       margin: 0;
+      background: var(--white);
+      border: 1px solid var(--gray-300);
     }
+
+    .employee-item input:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+
     .employee-id {
       font-weight: 600;
-      color: #667eea;
+      color: var(--primary-navy);
       min-width: 40px;
     }
     .loading {
       text-align: center;
-      padding: 40px;
-      color: #6c757d;
+      padding: 2rem;
+      color: var(--gray-500);
     }
+
     .spinner {
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #667eea;
+      border: 3px solid var(--gray-200);
+      border-top: 3px solid var(--primary-navy);
       border-radius: 50%;
       width: 30px;
       height: 30px;
       animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
+      margin: 0 auto 1rem;
     }
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
     .message {
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin: 16px 0;
+      padding: 0.875rem 1rem;
+      border-radius: var(--radius-md);
+      margin: 1rem 0;
       font-weight: 500;
+      font-size: 0.875rem;
+      border: 1px solid;
     }
+
     .message.success {
-      background: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
+      background: #f0fdf4;
+      color: #166534;
+      border-color: #bbf7d0;
     }
+
     .message.error {
-      background: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
+      background: #fef2f2;
+      color: #991b1b;
+      border-color: #fecaca;
     }
     .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
     }
+
     .stat-card {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
+      background: var(--white);
+      padding: 1.5rem;
+      border-radius: var(--radius-lg);
       text-align: center;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--gray-200);
     }
+
     .stat-number {
       font-size: 2rem;
-      font-weight: 600;
-      color: #667eea;
+      font-weight: 700;
+      color: var(--primary-navy);
+      line-height: 1;
     }
+
     .stat-label {
-      color: #6c757d;
-      font-size: 0.9rem;
-      margin-top: 4px;
+      color: var(--gray-600);
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+      font-weight: 500;
     }
     .auth-overlay {
       position: fixed;
@@ -258,26 +368,178 @@
       z-index: 1000;
       backdrop-filter: blur(5px);
     }
+
     .auth-box {
-      background: white;
-      padding: 40px;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      background: var(--white);
+      padding: 2rem;
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-xl);
       text-align: center;
+      max-width: 400px;
+      width: 90%;
     }
+
     .auth-box h3 {
       margin-top: 0;
       font-size: 1.5rem;
-      color: #333;
+      color: var(--gray-800);
+      margin-bottom: 1rem;
     }
+
     .auth-box input {
-      margin-top: 20px;
+      margin-top: 1rem;
       width: 100%;
       box-sizing: border-box;
     }
+
     .auth-box button {
-      margin-top: 20px;
+      margin-top: 1rem;
       width: 100%;
+    }
+
+    /* Mobile-first responsive design */
+    @media (max-width: 767px) {
+      .container {
+        padding: 0.5rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+      }
+
+      h2 {
+        font-size: 1rem;
+        margin: 1.5rem 0 0.75rem 0;
+        padding-bottom: 0.25rem;
+      }
+
+      .section {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: var(--radius-md);
+      }
+
+      .row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+        margin: 0.75rem 0;
+      }
+
+      .row > * {
+        width: 100%;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+
+      .stat-card {
+        padding: 1rem;
+      }
+
+      .stat-number {
+        font-size: 1.5rem;
+      }
+
+      .attendance-grid {
+        max-height: 400px;
+        font-size: 0.75rem;
+      }
+
+      th, td {
+        padding: 0.5rem 0.25rem;
+      }
+
+      th {
+        font-size: 0.625rem;
+      }
+
+      .employee-header {
+        grid-template-columns: 40px 1fr auto;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        font-size: 0.75rem;
+      }
+
+      .employee-item {
+        grid-template-columns: 40px 1fr auto;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        font-size: 0.875rem;
+      }
+
+      .btn-small {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.625rem;
+        min-height: 32px;
+      }
+
+      /* Collapsible sections for mobile */
+      .section.collapsible {
+        cursor: pointer;
+        position: relative;
+      }
+
+      .section.collapsible::after {
+        content: '▼';
+        position: absolute;
+        right: 1rem;
+        top: 1rem;
+        transition: transform 0.2s ease;
+      }
+
+      .section.collapsible.collapsed::after {
+        transform: rotate(-90deg);
+      }
+
+      .section.collapsible.collapsed .section-content {
+        display: none;
+      }
+
+      .section.collapsible .section-content {
+        margin-top: 1rem;
+      }
+    }
+
+    /* Desktop enhancements */
+    @media (min-width: 768px) {
+      .container {
+        padding: 2rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+        margin: 2.5rem 0 1.25rem 0;
+      }
+
+      .section {
+        padding: 2rem;
+        margin-bottom: 2rem;
+      }
+
+      .stats {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+      }
+
+      .stat-card {
+        padding: 2rem;
+      }
+
+      .stat-number {
+        font-size: 2.5rem;
+      }
+
+      .attendance-grid {
+        max-height: 700px;
+      }
     }
   </style>
 </head>
@@ -311,49 +573,51 @@
     </div>
 
     <!-- Office Hours Configuration Section -->
-    <div class="section">
+    <div class="section collapsible" id="officeHoursSection">
       <h2>🕐 Office Hours Configuration</h2>
-      
-      <div class="row">
-        <label for="loginTime" style="font-weight: 500;">Ideal Login Time:</label>
-        <input id="loginTime" type="time" value="10:00" />
-        <label for="logoutTime" style="font-weight: 500;">Ideal Logout Time:</label>
-        <input id="logoutTime" type="time" value="18:00" />
-        <button id="saveOfficeHours" class="btn-primary">💾 Save Office Hours</button>
+      <div class="section-content">
+        <div class="row">
+          <label for="loginTime" style="font-weight: 500;">Ideal Login Time:</label>
+          <input id="loginTime" type="time" value="10:00" />
+          <label for="logoutTime" style="font-weight: 500;">Ideal Logout Time:</label>
+          <input id="logoutTime" type="time" value="18:00" />
+          <button id="saveOfficeHours" class="btn-primary">💾 Save Office Hours</button>
+        </div>
+        
+        <div id="officeHoursMessage"></div>
       </div>
-      
-      <div id="officeHoursMessage"></div>
     </div>
 
     <!-- Employee Management Section -->
-    <div class="section">
+    <div class="section collapsible" id="employeeSection">
       <h2>👥 Employee Management</h2>
-      
-      <div class="row">
-        <input id="newName" placeholder="Enter employee name" style="flex: 1;" />
-        <button id="addBtn" class="btn-primary">➕ Add Employee</button>
-      </div>
-      
-      <div id="message"></div>
-      
-      <div id="empList" class="loading">
-        <div class="spinner"></div>
-        <div>Loading employees...</div>
+      <div class="section-content">
+        <div class="row">
+          <input id="newName" placeholder="Enter employee name" style="flex: 1;" />
+          <button id="addBtn" class="btn-primary">➕ Add Employee</button>
+        </div>
+        
+        <div id="message"></div>
+        
+        <div id="empList" class="loading">
+          <div class="spinner"></div>
+          <div>Loading employees...</div>
+        </div>
       </div>
     </div>
 
     <!-- Attendance Dashboard Section -->
-    <div class="section">
+    <div class="section collapsible" id="attendanceSection">
       <h2>📊 Attendance Dashboard</h2>
-      
-      <div class="row">
-        <label for="viewType" style="font-weight: 500;">View Type:</label>
-        <select id="viewType" style="padding: 8px 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 1rem;">
-          <option value="month">📅 Month View</option>
-          <option value="week" selected>📆 Week View</option>
-          <option value="day">📋 Day View</option>
-        </select>
-      </div>
+      <div class="section-content">
+        <div class="row">
+          <label for="viewType" style="font-weight: 500;">View Type:</label>
+          <select id="viewType">
+            <option value="month">📅 Month View</option>
+            <option value="week" selected>📆 Week View</option>
+            <option value="day">📋 Day View</option>
+          </select>
+        </div>
       
       <!-- Month View Controls -->
       <div id="monthControls" class="row" style="display: none;">
@@ -379,17 +643,18 @@
         <button id="exportDay" class="btn-secondary">📄 Export CSV</button>
       </div>
       
-      <div class="attendance-grid">
-        <table id="grid">
-          <tbody>
-            <tr>
-              <td colspan="100" class="loading">
-                <div class="spinner"></div>
-                <div>Select a view type and date to view attendance data</div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="attendance-grid">
+          <table id="grid">
+            <tbody>
+              <tr>
+                <td colspan="100" class="loading">
+                  <div class="spinner"></div>
+                  <div>Select a view type and date to view attendance data</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -995,6 +1260,38 @@
       
       checkAuth();
     })();
+
+    // Mobile collapsible sections functionality
+    function initCollapsibleSections() {
+      const collapsibleSections = document.querySelectorAll('.section.collapsible');
+      
+      collapsibleSections.forEach(section => {
+        const isMobile = window.innerWidth < 768;
+        
+        if (isMobile) {
+          // On mobile, start with all sections collapsed except the first one
+          const isFirstSection = section === collapsibleSections[0];
+          if (!isFirstSection) {
+            section.classList.add('collapsed');
+          }
+          
+          section.addEventListener('click', (e) => {
+            // Don't toggle if clicking on form elements
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
+              return;
+            }
+            section.classList.toggle('collapsed');
+          });
+        } else {
+          // On desktop, remove collapsed state
+          section.classList.remove('collapsed');
+        }
+      });
+    }
+
+    // Initialize collapsible sections on load and resize
+    initCollapsibleSections();
+    window.addEventListener('resize', initCollapsibleSections);
   </script>
 </body>
 </html>
