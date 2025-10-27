@@ -1,7 +1,7 @@
 // Neo Recovery Attendance API Client - Backend Version
 // Connects to the Vercel serverless backend.
 
-const API_BASE = '/api'; // Use relative path for Vercel deployment
+const API_BASE = window.API_BASE || '/api'; // Use window.API_BASE for local dev, relative path for Vercel
 
 async function apiGet(path, params = {}) {
   try {

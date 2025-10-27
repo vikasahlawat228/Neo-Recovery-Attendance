@@ -23,17 +23,23 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 # --- Google Sheets API Service ---
 def get_sheets_service():
     """Authenticates and returns a Google Sheets API service object."""
+    # Try environment variable first, then fall back to credentials file
     creds_json_str = os.environ.get('GOOGLE_CREDENTIALS_JSON')
     spreadsheet_id = os.environ.get('SPREADSHEET_ID')
 
-    if not creds_json_str:
-        raise ValueError("Missing GOOGLE_CREDENTIALS_JSON environment variable")
     if not spreadsheet_id:
         raise ValueError("Missing SPREADSHEET_ID environment variable")
 
     try:
-        creds_info = json.loads(creds_json_str)
-        creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+        if creds_json_str:
+            # Use environment variable
+            creds_info = json.loads(creds_json_str)
+            creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+        else:
+            # Use credentials file
+            creds_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'credentials.json')
+            creds = service_account.Credentials.from_service_account_file(creds_path, scopes=SCOPES)
+        
         service = build('sheets', 'v4', credentials=creds)
         return service.spreadsheets(), spreadsheet_id
     except json.JSONDecodeError:
@@ -99,7 +105,7 @@ def get_employee_by_id(service, spreadsheet_id, employee_id):
             return emp
     return None
 
-def mark_attendance(service, spreadsheet_id, employee_id):
+def mark_attendance(service, spreadsheet_id, employee_id, latitude=None, longitude=None, device_id=None):
     """Marks attendance for an employee by appending a row to the 'Attendance' sheet."""
     try:
         # 1. Validate employee
@@ -107,13 +113,31 @@ def mark_attendance(service, spreadsheet_id, employee_id):
         if not employee:
             return {"ok": False, "error": "Employee not found or inactive"}
 
-        # 2. Get current date and time in IST
+        # 2. Validate location if provided
+        if latitude is not None and longitude is not None:
+            location_validation = validate_location(latitude, longitude)
+            if not location_validation["ok"]:
+                return {"ok": False, "error": location_validation["error"]}
+
+        # 3. Check device session if device_id provided
+        if device_id:
+            tz = ZoneInfo("Asia/Kolkata")
+            now = datetime.now(tz)
+            date_iso = now.strftime('%Y-%m-%d')
+            
+            session_check = check_device_session(service, spreadsheet_id, device_id, date_iso)
+            if not session_check["ok"]:
+                return {"ok": False, "error": "Failed to check device session"}
+            if session_check["exists"]:
+                return {"ok": False, "error": "This device has already marked attendance today"}
+
+        # 4. Get current date and time in IST
         tz = ZoneInfo("Asia/Kolkata")
         now = datetime.now(tz)
         date_iso = now.strftime('%Y-%m-%d')
         time_hhmm = now.strftime('%H:%M')
 
-        # 3. Check for duplicates
+        # 5. Check for duplicates (employee-based)
         result = service.values().get(
             spreadsheetId=spreadsheet_id,
             range='Attendance!A:B'
@@ -129,7 +153,7 @@ def mark_attendance(service, spreadsheet_id, employee_id):
         if is_already_marked:
             return {"ok": True, "message": "already marked"}
 
-        # 4. Append new attendance record
+        # 6. Append new attendance record
         new_row = [date_iso, employee_id, employee['name'], time_hhmm, 'reception']
         service.values().append(
             spreadsheetId=spreadsheet_id,
@@ -137,6 +161,10 @@ def mark_attendance(service, spreadsheet_id, employee_id):
             valueInputOption='USER_ENTERED',
             body={'values': [new_row]}
         ).execute()
+
+        # 7. Save device session if device_id provided
+        if device_id:
+            save_device_session(service, spreadsheet_id, device_id, date_iso, employee_id)
 
         return {"ok": True, "marked_at": time_hhmm, "date": date_iso}
 
@@ -260,6 +288,125 @@ def get_todays_attendance(service, spreadsheet_id):
         app.logger.error(f"Error in get_todays_attendance: {e}")
         return {"ok": False, "error": "Failed to get today's attendance count.", "details": str(e)}
 
+def check_device_session(service, spreadsheet_id, device_id, date):
+    """Check if device has already submitted attendance for the given date."""
+    try:
+        # Try to get the AttendanceSessions sheet
+        try:
+            result = service.values().get(
+                spreadsheetId=spreadsheet_id,
+                range='AttendanceSessions!A:C'
+            ).execute()
+            rows = result.get('values', [])
+        except:
+            # If sheet doesn't exist, create it
+            create_sessions_sheet(service, spreadsheet_id)
+            return {"ok": True, "exists": False}
+        
+        if not rows or len(rows) < 2:
+            return {"ok": True, "exists": False}
+        
+        # Check if device_id + date combination exists
+        for row in rows[1:]:
+            if len(row) >= 2 and row[0] == device_id and row[1] == date:
+                return {"ok": True, "exists": True}
+        
+        return {"ok": True, "exists": False}
+    except Exception as e:
+        app.logger.error(f"Error in check_device_session: {e}")
+        return {"ok": False, "error": "Failed to check device session.", "details": str(e)}
+
+def save_device_session(service, spreadsheet_id, device_id, date, employee_id):
+    """Save device session to prevent duplicate submissions."""
+    try:
+        # Try to get the AttendanceSessions sheet
+        try:
+            service.values().get(
+                spreadsheetId=spreadsheet_id,
+                range='AttendanceSessions!A1'
+            ).execute()
+        except:
+            # If sheet doesn't exist, create it
+            create_sessions_sheet(service, spreadsheet_id)
+        
+        # Append new session record
+        tz = ZoneInfo("Asia/Kolkata")
+        now = datetime.now(tz)
+        timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
+        
+        new_row = [device_id, date, employee_id, timestamp]
+        service.values().append(
+            spreadsheetId=spreadsheet_id,
+            range='AttendanceSessions!A1',
+            valueInputOption='USER_ENTERED',
+            body={'values': [new_row]}
+        ).execute()
+        
+        return {"ok": True}
+    except Exception as e:
+        app.logger.error(f"Error in save_device_session: {e}")
+        return {"ok": False, "error": "Failed to save device session.", "details": str(e)}
+
+def create_sessions_sheet(service, spreadsheet_id):
+    """Create the AttendanceSessions sheet with proper headers."""
+    try:
+        # Create the sheet
+        sheet_body = {
+            'requests': [{
+                'addSheet': {
+                    'properties': {
+                        'title': 'AttendanceSessions'
+                    }
+                }
+            }]
+        }
+        service.batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body=sheet_body
+        ).execute()
+        
+        # Add headers
+        headers = [['device_id', 'date', 'employee_id', 'timestamp']]
+        service.values().update(
+            spreadsheetId=spreadsheet_id,
+            range='AttendanceSessions!A1',
+            valueInputOption='USER_ENTERED',
+            body={'values': headers}
+        ).execute()
+        
+        return True
+    except Exception as e:
+        app.logger.error(f"Error creating sessions sheet: {e}")
+        return False
+
+def validate_location(latitude, longitude):
+    """Validate if the provided coordinates are within allowed office locations."""
+    try:
+        # Office locations (same as frontend)
+        allowed_locations = [
+            {"lat": 12.9716, "lon": 77.5946, "radius": 50},
+            {"lat": 12.9784, "lon": 77.6008, "radius": 50}
+        ]
+        
+        def haversine_distance(lat1, lon1, lat2, lon2):
+            """Calculate distance between two points in meters."""
+            R = 6371000  # Earth's radius in meters
+            d_lat = (lat2 - lat1) * 3.14159265359 / 180
+            d_lon = (lon2 - lon1) * 3.14159265359 / 180
+            a = (0.5 - 0.5 * (d_lat / 2)) + 0.5 * (lat1 * 3.14159265359 / 180) * 0.5 * (lat2 * 3.14159265359 / 180) * (1 - 0.5 * (d_lon / 2))
+            c = 2 * 0.78539816339 * (a ** 0.5)
+            return R * c
+        
+        for location in allowed_locations:
+            distance = haversine_distance(latitude, longitude, location["lat"], location["lon"])
+            if distance <= location["radius"]:
+                return {"ok": True, "distance": round(distance)}
+        
+        return {"ok": False, "error": "Location is outside allowed office area"}
+    except Exception as e:
+        app.logger.error(f"Error in validate_location: {e}")
+        return {"ok": False, "error": "Location validation failed", "details": str(e)}
+
 # --- Flask Routes ---
 @app.route("/api/employees", methods=['GET', 'POST'])
 def handle_employees():
@@ -291,9 +438,14 @@ def handle_attendance_post():
     service, spreadsheet_id = get_sheets_service()
     body = request.get_json()
     emp_id = body.get('employee_id')
+    latitude = body.get('latitude')
+    longitude = body.get('longitude')
+    device_id = body.get('device_id')
+    
     if not emp_id:
         return jsonify({"ok": False, "error": "employee_id is required"}), 400
-    data = mark_attendance(service, spreadsheet_id, emp_id)
+    
+    data = mark_attendance(service, spreadsheet_id, emp_id, latitude, longitude, device_id)
     status = 404 if 'error' in data and data.get("error") != "already marked" else 200
     return jsonify(data), status
 
@@ -313,6 +465,34 @@ def handle_attendance_today():
     data = get_todays_attendance(service, spreadsheet_id)
     status = 500 if 'error' in data else 200
     return jsonify(data), status
+
+@app.route("/api/attendance/session", methods=['GET', 'POST'])
+def handle_attendance_session():
+    service, spreadsheet_id = get_sheets_service()
+    
+    if request.method == 'GET':
+        device_id = request.args.get('device_id')
+        date = request.args.get('date')
+        
+        if not device_id or not date:
+            return jsonify({"ok": False, "error": "device_id and date are required"}), 400
+        
+        data = check_device_session(service, spreadsheet_id, device_id, date)
+        status = 500 if 'error' in data else 200
+        return jsonify(data), status
+    
+    elif request.method == 'POST':
+        body = request.get_json()
+        device_id = body.get('device_id')
+        date = body.get('date')
+        employee_id = body.get('employee_id')
+        
+        if not device_id or not date or not employee_id:
+            return jsonify({"ok": False, "error": "device_id, date, and employee_id are required"}), 400
+        
+        data = save_device_session(service, spreadsheet_id, device_id, date, employee_id)
+        status = 500 if 'error' in data else 200
+        return jsonify(data), status
 
 if __name__ == '__main__':
     app.run(debug=True)
