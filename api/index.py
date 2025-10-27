@@ -174,6 +174,71 @@ def mark_attendance(service, spreadsheet_id, employee_id, latitude=None, longitu
         app.logger.error(f"Error in mark_attendance: {e}")
         return {"ok": False, "error": "Failed to mark attendance.", "details": str(e)}
 
+def mark_logout(service, spreadsheet_id, employee_id, latitude=None, longitude=None, device_id=None, testing_mode=False):
+    """Marks logout for an employee by updating the departure_time in the 'Attendance' sheet."""
+    try:
+        # 1. Validate employee
+        employee = get_employee_by_id(service, spreadsheet_id, int(employee_id))
+        if not employee:
+            return {"ok": False, "error": "Employee not found or inactive"}
+
+        # 2. Validate location if provided and not in testing mode
+        if latitude is not None and longitude is not None and not testing_mode:
+            location_validation = validate_location(latitude, longitude)
+            if not location_validation["ok"]:
+                return {"ok": False, "error": location_validation["error"]}
+        elif testing_mode:
+            app.logger.info(f"🧪 TESTING MODE: Location validation bypassed for logout employee {employee_id}")
+
+        # 3. Get current date and time in IST
+        tz = ZoneInfo("Asia/Kolkata")
+        now = datetime.now(tz)
+        date_iso = now.strftime('%Y-%m-%d')
+        time_hhmm = now.strftime('%H:%M')
+
+        # 4. Check if employee has marked attendance today
+        result = service.values().get(
+            spreadsheetId=spreadsheet_id,
+            range='Attendance!A:F'
+        ).execute()
+        rows = result.get('values', [])
+        
+        # Find the attendance record for today
+        attendance_row_index = None
+        for i, row in enumerate(rows[1:], start=2):  # Skip header, start from row 2
+            if len(row) >= 2 and row[0] == date_iso and row[1] == str(employee_id):
+                attendance_row_index = i
+                break
+        
+        if not attendance_row_index:
+            return {"ok": False, "error": "No attendance record found for today. Please mark attendance first."}
+        
+        # 5. Check if already logged out
+        attendance_row = rows[attendance_row_index - 1]  # Convert to 0-based index
+        if len(attendance_row) >= 6 and attendance_row[5]:  # departure_time column exists and has value
+            return {"ok": False, "error": "Already logged out today"}
+
+        # 6. Update the departure_time in the attendance record
+        # First, ensure the row has enough columns
+        while len(attendance_row) < 6:
+            attendance_row.append('')
+        
+        attendance_row[5] = time_hhmm  # Set departure_time
+        
+        # Update the specific row
+        service.values().update(
+            spreadsheetId=spreadsheet_id,
+            range=f'Attendance!A{attendance_row_index}:F{attendance_row_index}',
+            valueInputOption='USER_ENTERED',
+            body={'values': [attendance_row]}
+        ).execute()
+
+        return {"ok": True, "logged_out_at": time_hhmm, "date": date_iso}
+
+    except Exception as e:
+        app.logger.error(f"Error in mark_logout: {e}")
+        return {"ok": False, "error": "Failed to mark logout.", "details": str(e)}
+
 def add_employee(service, spreadsheet_id, name):
     """Adds a new employee to the 'Employees' sheet."""
     try:
@@ -451,6 +516,23 @@ def handle_attendance_post():
     
     data = mark_attendance(service, spreadsheet_id, emp_id, latitude, longitude, device_id, testing_mode)
     status = 404 if 'error' in data and data.get("error") != "already marked" else 200
+    return jsonify(data), status
+
+@app.route("/api/logout", methods=['POST'])
+def handle_logout_post():
+    service, spreadsheet_id = get_sheets_service()
+    body = request.get_json()
+    emp_id = body.get('employee_id')
+    latitude = body.get('latitude')
+    longitude = body.get('longitude')
+    device_id = body.get('device_id')
+    testing_mode = body.get('testing_mode', False)
+    
+    if not emp_id:
+        return jsonify({"ok": False, "error": "employee_id is required"}), 400
+    
+    data = mark_logout(service, spreadsheet_id, emp_id, latitude, longitude, device_id, testing_mode)
+    status = 404 if 'error' in data and data.get("error") != "already logged out" else 200
     return jsonify(data), status
 
 @app.route("/api/attendance", methods=['GET'])

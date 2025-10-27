@@ -180,7 +180,10 @@
       </select>
     </div>
     
-    <button class="btn" id="mark">✅ Mark Present</button>
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+      <button class="btn" id="mark">✅ Mark Present</button>
+      <button class="btn" id="logout" style="background: #f44336;">🚪 Mark Logout</button>
+    </div>
     
     <!-- Testing Controls -->
     <div style="margin-top: 20px; text-align: center;">
@@ -412,6 +415,58 @@
       }
     }
 
+    async function checkLocationAndLogout(employeeId) {
+      try {
+        showLoading(true);
+        showMessage('📍 Checking location for logout...', 'info');
+
+        // Get current location
+        currentLocation = await getCurrentLocation();
+        
+        // Show debug information
+        showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
+        
+        // Check if within office radius
+        const locationCheck = isWithinOfficeRadius(currentLocation.lat, currentLocation.lon);
+        if (!locationCheck.allowed) {
+          if (TESTING_MODE) {
+            console.log('🧪 TESTING MODE: Bypassing location check for logout');
+            showMessage(`🧪 TESTING MODE: Location check bypassed. You are ${locationCheck.distance}m from ${locationCheck.closestLocation}.`, 'info');
+          } else {
+            showMessage(`❌ You are outside the office area. You are ${locationCheck.distance}m from ${locationCheck.closestLocation}. Please come to the office to mark logout.`, 'error');
+            return false;
+          }
+        } else {
+          showMessage(`✅ Location verified: ${locationCheck.location} (${locationCheck.distance}m away)`, 'success');
+        }
+
+        // Mark logout
+        const result = await apiPost('logout', { 
+          employee_id: Number(employeeId),
+          latitude: currentLocation.lat,
+          longitude: currentLocation.lon,
+          testing_mode: TESTING_MODE
+        });
+        
+        if (result.ok && result.logged_out_at) {
+          showMessage(`✅ Logout marked successfully at ${result.logged_out_at}`, 'success');
+          clearSelection();
+          return true;
+        } else if (result.message === 'already logged out') {
+          showMessage('ℹ️ Already logged out today', 'info');
+          return false;
+        } else {
+          showMessage(result.error || 'Unable to mark logout. Please try again.', 'error');
+          return false;
+        }
+      } catch (error) {
+        showMessage(error.message || 'Location check failed. Please try again.', 'error');
+        return false;
+      } finally {
+        showLoading(false);
+      }
+    }
+
     async function init() {
       try {
         showLoading(true);
@@ -510,6 +565,17 @@
 
       // Use the new location and device validation
       await checkLocationAndMark(id);
+    };
+
+    document.getElementById('logout').onclick = async () => {
+      const id = document.getElementById('emp').value;
+      if (!id) {
+        showMessage('Please select an employee', 'error');
+        return;
+      }
+
+      // Use the new location validation for logout
+      await checkLocationAndLogout(id);
     };
 
     document.getElementById('toggleTesting').onclick = () => {
