@@ -312,7 +312,9 @@ def get_attendance_matrix(service, spreadsheet_id, month):
         attendance_data = {}
         for row in rows[1:]:
             if len(row) >= 4 and row[0] and row[0].startswith(month):
-                date_str, emp_id, _, arrival_time = row
+                date_str = row[0]
+                emp_id = row[1]
+                arrival_time = row[3]  # arrival_time is in column D (index 3)
                 logout_time = row[5] if len(row) > 5 else ''  # logout_time is in column F (index 5)
                 day = int(date_str.split('-')[2])
                 
