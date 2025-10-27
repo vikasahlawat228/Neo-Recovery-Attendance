@@ -129,19 +129,11 @@
       color: #c62828;
       font-weight: 500;
     }
-    td.late-arrival::after {
-      content: " ⏰";
-    }
     td.early-departure::after {
       content: " 🏃";
     }
-    td.late-arrival.early-departure::after {
-      content: " ⏰🏃";
-    }
     /* Style for attendance cells with times */
     td:not(.name) {
-      font-family: 'Courier New', monospace;
-      font-size: 0.9rem;
       min-width: 80px;
     }
     /* Style for cells with both login and logout */
@@ -358,13 +350,13 @@
         <label for="viewType" style="font-weight: 500;">View Type:</label>
         <select id="viewType" style="padding: 8px 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 1rem;">
           <option value="month">📅 Month View</option>
-          <option value="week">📆 Week View</option>
+          <option value="week" selected>📆 Week View</option>
           <option value="day">📋 Day View</option>
         </select>
       </div>
       
       <!-- Month View Controls -->
-      <div id="monthControls" class="row">
+      <div id="monthControls" class="row" style="display: none;">
         <label for="month" style="font-weight: 500;">Select Month:</label>
         <input id="month" type="month" />
         <button id="load" class="btn-primary">📅 Load Data</button>
@@ -372,7 +364,7 @@
       </div>
       
       <!-- Week View Controls -->
-      <div id="weekControls" class="row" style="display: none;">
+      <div id="weekControls" class="row">
         <label for="weekStart" style="font-weight: 500;">Week Starting:</label>
         <input id="weekStart" type="date" />
         <button id="loadWeek" class="btn-primary">📆 Load Week</button>
@@ -623,7 +615,7 @@
     }
 
     // View type switching
-    function switchViewType() {
+    async function switchViewType() {
       const viewType = document.getElementById('viewType').value;
       currentViewType = viewType;
       
@@ -632,22 +624,23 @@
       document.getElementById('weekControls').style.display = 'none';
       document.getElementById('dayControls').style.display = 'none';
       
-      // Show relevant controls
+      // Show relevant controls and set defaults
       if (viewType === 'month') {
         document.getElementById('monthControls').style.display = 'flex';
         setDefaultMonth();
+        // Automatically load month data
+        await loadMonth();
       } else if (viewType === 'week') {
         document.getElementById('weekControls').style.display = 'flex';
         setDefaultWeek();
+        // Automatically load week data
+        await loadWeek();
       } else if (viewType === 'day') {
         document.getElementById('dayControls').style.display = 'flex';
         setDefaultDay();
+        // Automatically load day data
+        await loadDay();
       }
-      
-      // Clear current data
-      currentData = null;
-      const table = document.getElementById('grid');
-      table.innerHTML = '<tbody><tr><td colspan="100" class="loading"><div class="spinner"></div><div>Select a date to view attendance data</div></td></tr></tbody>';
     }
 
     function setDefaultMonth() {
@@ -961,9 +954,8 @@
       await loadOfficeHours();
       await refreshEmployees();
       
-      // Set up default view (month view with current month)
-      switchViewType();
-      await loadMonth();
+      // Set up default view (week view with current week)
+      await switchViewType();
     })();
 
     // Password Protection
