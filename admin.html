@@ -680,7 +680,7 @@
   <script src="api-backend.js"></script>
   <script>
     let currentData = null;
-    let currentViewType = 'month';
+    let currentViewType = 'week'; // Match the HTML default selection
     let officeHours = { loginTime: "10:00", logoutTime: "18:00" };
 
     async function refreshEmployees() {
@@ -925,9 +925,16 @@
       } else if (viewType === 'day') {
         document.getElementById('dayControls').style.display = 'flex';
         setDefaultDay();
-        // Small delay to ensure input is set
+        // Small delay to ensure input is set and then load data
         setTimeout(async () => {
-          await loadDay();
+          const dayDateInput = document.getElementById('dayDate');
+          if (dayDateInput && dayDateInput.value) {
+            console.log('Loading day view with date:', dayDateInput.value);
+            await loadDay();
+          } else {
+            console.error('Day date not set properly');
+            showMessage('Please select a date for day view', 'error');
+          }
         }, 100);
       }
     }
@@ -956,7 +963,15 @@
       const yyyy = now.getFullYear();
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const dd = String(now.getDate()).padStart(2, '0');
-      document.getElementById('dayDate').value = `${yyyy}-${mm}-${dd}`;
+      const todayDate = `${yyyy}-${mm}-${dd}`;
+      
+      const dayDateInput = document.getElementById('dayDate');
+      if (dayDateInput) {
+        dayDateInput.value = todayDate;
+        console.log('Set default day date to:', todayDate);
+      } else {
+        console.error('Day date input element not found');
+      }
     }
 
     async function loadMonth() {
@@ -1082,8 +1097,14 @@
     }
 
     async function loadDay() {
-      const date = document.getElementById('dayDate').value;
+      const dayDateInput = document.getElementById('dayDate');
+      const date = dayDateInput ? dayDateInput.value : '';
+      
+      console.log('loadDay called with date:', date);
+      console.log('dayDateInput element:', dayDateInput);
+      
       if (!date) {
+        console.error('No date selected for day view');
         showMessage('Please select a date', 'error');
         return;
       }
@@ -1104,8 +1125,15 @@
         const rows = result.rows;
         console.log('Day view rows:', rows);
         
-        // Build table header
-        let html = '<thead><tr><th class="sticky">Employee</th><th>Attendance</th></tr></thead>';
+        // Build table header with date information
+        const dateObj = new Date(date);
+        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+        const formattedDate = dateObj.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+        let html = `<thead><tr><th class="sticky">Employee</th><th>Attendance for ${dayName}, ${formattedDate}</th></tr></thead>`;
         
         // Build table rows
         html += '<tbody>';
@@ -1122,7 +1150,7 @@
         html += '</tbody>';
         table.innerHTML = html;
         
-        showMessage(`Loaded attendance data for ${date}`, 'success');
+        showMessage(`Loaded attendance data for ${formattedDate}`, 'success');
       } catch (error) {
         console.error('Day view error:', error);
         const table = document.getElementById('grid');
