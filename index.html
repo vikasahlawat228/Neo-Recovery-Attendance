@@ -402,11 +402,13 @@
           showMessage('ℹ️ You have already marked attendance for today', 'info');
           return false;
         } else {
+          console.error('Attendance marking failed:', result);
           showMessage(result.error || 'Unable to mark attendance. Please try again.', 'error');
           return false;
         }
       } catch (error) {
         // Handle different types of errors gracefully
+        console.error('Error in checkLocationAndMark:', error);
         if (error.message.includes('Permission denied') || error.message.includes('User denied')) {
           showMessage('❌ Location access is required to mark attendance. Please allow location access and try again.', 'error');
         } else if (error.message.includes('timeout')) {
@@ -414,7 +416,7 @@
         } else if (error.message.includes('Position unavailable')) {
           showMessage('❌ Unable to determine your location. Please check your GPS settings and try again.', 'error');
         } else {
-          showMessage('❌ Unable to verify your location. Please try again.', 'error');
+          showMessage(`❌ Unable to verify your location. Error: ${error.message}`, 'error');
         }
         return false;
       } finally {

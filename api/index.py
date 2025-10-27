@@ -574,11 +574,12 @@ def validate_location(latitude, longitude):
         
         def haversine_distance(lat1, lon1, lat2, lon2):
             """Calculate distance between two points in meters."""
+            import math
             R = 6371000  # Earth's radius in meters
-            d_lat = (lat2 - lat1) * 3.14159265359 / 180
-            d_lon = (lon2 - lon1) * 3.14159265359 / 180
-            a = (0.5 - 0.5 * (d_lat / 2)) + 0.5 * (lat1 * 3.14159265359 / 180) * 0.5 * (lat2 * 3.14159265359 / 180) * (1 - 0.5 * (d_lon / 2))
-            c = 2 * 0.78539816339 * (a ** 0.5)
+            d_lat = (lat2 - lat1) * math.pi / 180
+            d_lon = (lon2 - lon1) * math.pi / 180
+            a = math.sin(d_lat/2) * math.sin(d_lat/2) + math.cos(lat1 * math.pi / 180) * math.cos(lat2 * math.pi / 180) * math.sin(d_lon/2) * math.sin(d_lon/2)
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
             return R * c
         
         # Check if within any office radius
@@ -729,5 +730,19 @@ def handle_office_hours():
         status = 500 if 'error' in data else 200
         return jsonify(data), status
 
+@app.route("/api/test-location", methods=['POST'])
+def test_location():
+    """Test endpoint to verify location validation without Google Sheets."""
+    body = request.get_json()
+    latitude = body.get('latitude')
+    longitude = body.get('longitude')
+    
+    if not latitude or not longitude:
+        return jsonify({"ok": False, "error": "latitude and longitude are required"}), 400
+    
+    # Test location validation
+    location_validation = validate_location(latitude, longitude)
+    return jsonify(location_validation)
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=8081)
