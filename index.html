@@ -486,7 +486,7 @@
       }
     }
 
-    // Check if employee has logged in today
+    // Check if employee has logged in today (kept for potential future use)
     async function hasEmployeeLoggedInToday(employeeId) {
       try {
         const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
@@ -494,6 +494,7 @@
         
         if (result.ok && result.rows) {
           const employeeRecord = result.rows.find(row => row.id == employeeId);
+          // Check if there's any attendance data (either just login time or login + logout)
           return employeeRecord && employeeRecord['0'] && employeeRecord['0'].trim() !== '';
         }
         return false;
@@ -589,15 +590,6 @@
     async function checkLocationAndLogout(employeeId) {
       try {
         showLoading(true);
-        showMessage('📍 Checking your login status...', 'info');
-
-        // First check if employee has logged in today
-        const hasLoggedIn = await hasEmployeeLoggedInToday(employeeId);
-        if (!hasLoggedIn) {
-          showMessage('❌ You haven\'t logged in today. Please mark your attendance first before logging out.', 'error');
-          return false;
-        }
-
         showMessage('📍 Verifying your location for logout...', 'info');
 
         // Get current location
