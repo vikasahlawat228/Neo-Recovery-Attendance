@@ -160,6 +160,11 @@
       🌐 You are offline. Attendance will be synced when you're back online.
     </div>
     <div id="syncStatus" class="proxy-status" style="display: none;"></div>
+    
+    <!-- Debug Panel -->
+    <div id="debugPanel" class="proxy-status" style="display: none; background: #f0f8ff; color: #0066cc; border: 1px solid #b3d9ff;">
+      <strong>🐛 Debug Info:</strong> <span id="debugInfo">Loading...</span>
+    </div>
 
     <div class="form-group">
       <label for="search">Search Employee</label>
@@ -176,6 +181,13 @@
     </div>
     
     <button class="btn" id="mark">✅ Mark Present</button>
+    
+    <!-- Testing Controls -->
+    <div style="margin-top: 20px; text-align: center;">
+      <button id="toggleTesting" style="padding: 8px 16px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
+        🧪 Enable Testing Mode
+      </button>
+    </div>
     
     <div class="loading" id="loading">
       <div class="spinner"></div>
@@ -198,6 +210,9 @@
       { name: "Main Office", lat: 12.9716, lon: 77.5946, radius: 50 },
       { name: "Test Office", lat: 12.9784, lon: 77.6008, radius: 50 }
     ];
+    
+    // Testing mode - set to true to bypass location check
+    let TESTING_MODE = false; // Change to true for testing
     
     // Device fingerprinting and session management
     let deviceId = null;
@@ -245,13 +260,30 @@
 
     // Check if location is within allowed radius
     function isWithinOfficeRadius(lat, lon) {
+      console.log(`🔍 Checking location: ${lat}, ${lon}`);
+      
       for (const location of ALLOWED_LOCATIONS) {
         const distance = haversineDistance(lat, lon, location.lat, location.lon);
+        console.log(`📍 Distance to ${location.name}: ${Math.round(distance)}m (radius: ${location.radius}m)`);
+        
         if (distance <= location.radius) {
           return { allowed: true, location: location.name, distance: Math.round(distance) };
         }
       }
-      return { allowed: false, distance: null };
+      
+      // Find closest location for debugging
+      let closestLocation = null;
+      let minDistance = Infinity;
+      for (const location of ALLOWED_LOCATIONS) {
+        const distance = haversineDistance(lat, lon, location.lat, location.lon);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestLocation = location;
+        }
+      }
+      
+      console.log(`❌ Outside office area. Closest: ${closestLocation.name} at ${Math.round(minDistance)}m`);
+      return { allowed: false, distance: Math.round(minDistance), closestLocation: closestLocation.name };
     }
 
     // Get current location with high accuracy
@@ -326,14 +358,22 @@
         // Get current location
         currentLocation = await getCurrentLocation();
         
+        // Show debug information
+        showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
+        
         // Check if within office radius
         const locationCheck = isWithinOfficeRadius(currentLocation.lat, currentLocation.lon);
         if (!locationCheck.allowed) {
-          showMessage(`❌ You are outside the office area. Please come to the office to mark attendance.`, 'error');
-          return false;
+          if (TESTING_MODE) {
+            console.log('🧪 TESTING MODE: Bypassing location check');
+            showMessage(`🧪 TESTING MODE: Location check bypassed. You are ${locationCheck.distance}m from ${locationCheck.closestLocation}.`, 'info');
+          } else {
+            showMessage(`❌ You are outside the office area. You are ${locationCheck.distance}m from ${locationCheck.closestLocation}. Please come to the office to mark attendance.`, 'error');
+            return false;
+          }
+        } else {
+          showMessage(`✅ Location verified: ${locationCheck.location} (${locationCheck.distance}m away)`, 'success');
         }
-
-        showMessage(`✅ Location verified: ${locationCheck.location} (${locationCheck.distance}m away)`, 'success');
 
         // Check if device already submitted today
         const canSubmit = await canMarkAttendanceToday();
@@ -443,6 +483,17 @@
       msgEl.className = type;
     }
 
+    function showDebugInfo(info) {
+      const debugPanel = document.getElementById('debugPanel');
+      const debugInfo = document.getElementById('debugInfo');
+      debugInfo.textContent = info;
+      debugPanel.style.display = 'block';
+    }
+
+    function hideDebugInfo() {
+      document.getElementById('debugPanel').style.display = 'none';
+    }
+
     // Event listeners
     document.getElementById('search').addEventListener('input', (e) => {
       filterEmployees(e.target.value);
@@ -457,6 +508,20 @@
 
       // Use the new location and device validation
       await checkLocationAndMark(id);
+    };
+
+    document.getElementById('toggleTesting').onclick = () => {
+      TESTING_MODE = !TESTING_MODE;
+      const button = document.getElementById('toggleTesting');
+      if (TESTING_MODE) {
+        button.textContent = '🧪 Testing Mode ON';
+        button.style.background = '#4caf50';
+        showMessage('🧪 Testing mode enabled - location check bypassed', 'info');
+      } else {
+        button.textContent = '🧪 Enable Testing Mode';
+        button.style.background = '#ff9800';
+        showMessage('🧪 Testing mode disabled - location check active', 'info');
+      }
     };
 
     function clearSelection() {
