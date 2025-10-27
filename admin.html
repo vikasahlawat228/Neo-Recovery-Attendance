@@ -1111,7 +1111,7 @@
         html += '<tbody>';
         if (rows && rows.length > 0) {
           rows.forEach(row => {
-            const time = row.attendance || '';
+            const time = row['0'] || '';  // Use '0' key like week/month views
             const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
             html += `<tr><td class="name">${row.name}</td><td class="${cellData.className}">${cellData.content}</td></tr>`;
           });
@@ -1188,7 +1188,7 @@
         
         csv = 'Employee Name,Attendance\n';
         rows.forEach(row => {
-          csv += `"${row.name}","${row.attendance || ''}"\n`;
+          csv += `"${row.name}","${row['0'] || ''}"\n`;
         });
         
         filename = `attendance-${date}.csv`;

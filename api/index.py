@@ -420,7 +420,7 @@ def get_attendance_day(service, spreadsheet_id, date):
 
         matrix_rows = []
         for emp_id, name in emp_map.items():
-            row_data = {"id": emp_id, "name": name, "attendance": attendance_data.get(emp_id, "")}
+            row_data = {"id": emp_id, "name": name, "0": attendance_data.get(emp_id, "")}
             matrix_rows.append(row_data)
             
         return {"ok": True, "date": date, "rows": matrix_rows}
