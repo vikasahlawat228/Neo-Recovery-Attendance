@@ -1124,6 +1124,11 @@
         
         const rows = result.rows;
         console.log('Day view rows:', rows);
+        console.log('Day view rows length:', rows.length);
+        if (rows.length > 0) {
+          console.log('First row sample:', rows[0]);
+          console.log('Row keys:', Object.keys(rows[0]));
+        }
         
         // Build table header with date information
         const dateObj = new Date(date);
@@ -1138,17 +1143,23 @@
         // Build table rows
         html += '<tbody>';
         if (rows && rows.length > 0) {
-          rows.forEach(row => {
+          console.log('Building table rows for day view...');
+          rows.forEach((row, index) => {
             const time = row['0'] || '';  // Use '0' key like week/month views
+            console.log(`Row ${index}:`, row, 'Time:', time);
             const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
+            console.log(`Cell data for row ${index}:`, cellData);
             html += `<tr><td class="name">${row.name}</td><td class="${cellData.className}">${cellData.content}</td></tr>`;
           });
         } else {
+          console.log('No rows to display for day view');
           html += '<tr><td colspan="2" style="text-align: center; color: #6c757d; padding: 20px;">No attendance data found for this date</td></tr>';
         }
         
         html += '</tbody>';
+        console.log('Final HTML for day view:', html);
         table.innerHTML = html;
+        console.log('Table innerHTML after setting:', table.innerHTML);
         
         showMessage(`Loaded attendance data for ${formattedDate}`, 'success');
       } catch (error) {

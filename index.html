@@ -609,6 +609,7 @@
         }
 
         // Mark logout
+        console.log('Sending logout request for employee:', employeeId, 'device:', deviceId);
         const result = await apiPost('logout', { 
           employee_id: Number(employeeId),
           latitude: currentLocation.lat,
@@ -616,6 +617,7 @@
           device_id: deviceId,
           testing_mode: false
         });
+        console.log('Logout API response:', result);
         
         if (result.ok && result.logged_out_at) {
           // Save the selected employee ID to localStorage for next time
@@ -629,7 +631,7 @@
         } else if (result.error && (result.error.includes("haven't logged in today") || result.error.includes('No attendance record found'))) {
           showMessage('❌ You haven\'t logged in today. Please mark your attendance first before logging out.', 'error');
           return false;
-        } else if (result.error && result.error.includes('cannot logout as employee')) {
+        } else if (result.error && (result.error.includes('cannot logout as employee') || result.error.includes('logged in as employee'))) {
           showMessage(result.error, 'error');
           return false;
         } else if (result.error && result.error.includes('Employee not found')) {
@@ -651,6 +653,8 @@
       } catch (error) {
         // Handle different types of errors gracefully
         console.error('Error in checkLocationAndLogout:', error);
+        console.error('Error message:', error.message);
+        
         if (error.message.includes('Permission denied') || error.message.includes('User denied')) {
           showMessage('❌ Location access is required to mark logout. Please allow location access in your browser settings and try again.', 'error');
         } else if (error.message.includes('timeout')) {
@@ -659,6 +663,8 @@
           showMessage('❌ Unable to determine your location. Please check your GPS settings, ensure you are outdoors or near a window, and try again.', 'error');
         } else if (error.message.includes('already logged out') || error.message.includes('Already logged out')) {
           showMessage('ℹ️ You have already logged out today. No action needed.', 'info');
+        } else if (error.message.includes('logged in as employee') || error.message.includes('cannot logout as employee')) {
+          showMessage(error.message, 'error');
         } else if (error.message.includes('Network error') || error.message.includes('Failed to fetch')) {
           showMessage('❌ Network connection error. Please check your internet connection and try again.', 'error');
         } else if (error.message.includes('Server error')) {

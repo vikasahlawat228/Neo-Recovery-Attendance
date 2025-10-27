@@ -216,12 +216,16 @@ def mark_logout(service, spreadsheet_id, employee_id, latitude=None, longitude=N
 
         # 6. Check device session if device_id provided - ensure same user who logged in is logging out
         if device_id:
+            app.logger.info(f"Checking device session for device {device_id}, employee {employee_id}, date {date_iso}")
             session_check = check_device_session_for_employee(service, spreadsheet_id, device_id, date_iso, employee_id)
+            app.logger.info(f"Device session check result: {session_check}")
             if not session_check["ok"]:
                 # If session check fails, log it but don't block logout - the main check is if employee logged in today
                 app.logger.warning(f"Device session check failed for device {device_id}, employee {employee_id}: {session_check.get('error', 'Unknown error')}")
             elif session_check["exists"] and session_check["employee_id"] != int(employee_id):
-                return {"ok": False, "error": f"You are logged in as employee #{session_check['employee_id']} and cannot logout as employee #{employee_id}. Please use the same device you used to log in."}
+                error_msg = f"You are logged in as employee #{session_check['employee_id']} and cannot logout as employee #{employee_id}. Please use the same device you used to log in."
+                app.logger.info(f"Blocking logout: {error_msg}")
+                return {"ok": False, "error": error_msg}
 
         # 7. Update the logout_time in the attendance record
         # First, ensure the row has enough columns
