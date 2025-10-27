@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Neo Recovery Attendance - Kiosk (Backend Version)</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>">
   <style>
     body {
       font-family: system-ui, -apple-system, sans-serif;
@@ -295,29 +296,33 @@
       return new Promise((resolve, reject) => {
         const options = {
           enableHighAccuracy: true,
-          timeout: 10000,
+          timeout: 15000, // Increased timeout for better reliability
           maximumAge: 0
         };
 
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const { latitude, longitude, accuracy } = position.coords;
-            if (accuracy > 20) {
+            // Only show accuracy warning in testing mode
+            if (TESTING_MODE && accuracy > 20) {
               showMessage(`⚠️ GPS accuracy is ${Math.round(accuracy)}m. Please move to a better location or try again.`, 'error');
             }
             resolve({ lat: latitude, lon: longitude, accuracy });
           },
           (error) => {
-            let message = 'Location access denied. Please enable location services to mark attendance.';
+            let message = '';
             switch(error.code) {
               case error.PERMISSION_DENIED:
-                message = 'Location access denied. Please allow location access to mark attendance.';
+                message = 'Permission denied. Location access is required to mark attendance.';
                 break;
               case error.POSITION_UNAVAILABLE:
-                message = 'Location information unavailable. Please check your GPS settings.';
+                message = 'Position unavailable. Please check your GPS settings and try again.';
                 break;
               case error.TIMEOUT:
-                message = 'Location request timed out. Please try again.';
+                message = 'Location request timed out. Please check your GPS signal and try again.';
+                break;
+              default:
+                message = 'Unable to determine your location. Please try again.';
                 break;
             }
             reject(new Error(message));
@@ -357,13 +362,15 @@
     async function checkLocationAndMark(employeeId) {
       try {
         showLoading(true);
-        showMessage('📍 Checking location...', 'info');
+        showMessage('📍 Verifying your location...', 'info');
 
         // Get current location
         currentLocation = await getCurrentLocation();
         
-        // Show debug information
-        showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
+        // Show debug information (only in debug mode)
+        if (TESTING_MODE) {
+          showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
+        }
         
         // Check if within office radius
         const locationCheck = isWithinOfficeRadius(currentLocation.lat, currentLocation.lon);
@@ -372,17 +379,18 @@
             console.log('🧪 TESTING MODE: Bypassing location check');
             showMessage(`🧪 TESTING MODE: Location check bypassed. You are ${locationCheck.distance}m from ${locationCheck.closestLocation}.`, 'info');
           } else {
-            showMessage(`❌ You are outside the office area. You are ${locationCheck.distance}m from ${locationCheck.closestLocation}. Please come to the office to mark attendance.`, 'error');
+            // User-friendly message without revealing exact distance
+            showMessage(`❌ You need to be at the office to mark attendance. Please come to the office location and try again.`, 'error');
             return false;
           }
         } else {
-          showMessage(`✅ Location verified: ${locationCheck.location} (${locationCheck.distance}m away)`, 'success');
+          showMessage(`✅ Location verified`, 'success');
         }
 
         // Check if device already submitted today
         const canSubmit = await canMarkAttendanceToday();
         if (!canSubmit) {
-          showMessage('❌ This device has already marked attendance today. Only one submission per device per day is allowed.', 'error');
+          showMessage('❌ This device has already been used to mark attendance today. Each device can only be used once per day for security reasons.', 'error');
           return false;
         }
 
@@ -401,14 +409,23 @@
           clearSelection();
           return true;
         } else if (result.message === 'already marked') {
-          showMessage('ℹ️ Already marked for today', 'info');
+          showMessage('ℹ️ You have already marked attendance for today', 'info');
           return false;
         } else {
           showMessage(result.error || 'Unable to mark attendance. Please try again.', 'error');
           return false;
         }
       } catch (error) {
-        showMessage(error.message || 'Location check failed. Please try again.', 'error');
+        // Handle different types of errors gracefully
+        if (error.message.includes('Permission denied') || error.message.includes('User denied')) {
+          showMessage('❌ Location access is required to mark attendance. Please allow location access and try again.', 'error');
+        } else if (error.message.includes('timeout')) {
+          showMessage('❌ Location check timed out. Please check your GPS signal and try again.', 'error');
+        } else if (error.message.includes('Position unavailable')) {
+          showMessage('❌ Unable to determine your location. Please check your GPS settings and try again.', 'error');
+        } else {
+          showMessage('❌ Unable to verify your location. Please try again.', 'error');
+        }
         return false;
       } finally {
         showLoading(false);
@@ -418,13 +435,15 @@
     async function checkLocationAndLogout(employeeId) {
       try {
         showLoading(true);
-        showMessage('📍 Checking location for logout...', 'info');
+        showMessage('📍 Verifying your location for logout...', 'info');
 
         // Get current location
         currentLocation = await getCurrentLocation();
         
-        // Show debug information
-        showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
+        // Show debug information (only in debug mode)
+        if (TESTING_MODE) {
+          showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
+        }
         
         // Check if within office radius
         const locationCheck = isWithinOfficeRadius(currentLocation.lat, currentLocation.lon);
@@ -433,11 +452,12 @@
             console.log('🧪 TESTING MODE: Bypassing location check for logout');
             showMessage(`🧪 TESTING MODE: Location check bypassed. You are ${locationCheck.distance}m from ${locationCheck.closestLocation}.`, 'info');
           } else {
-            showMessage(`❌ You are outside the office area. You are ${locationCheck.distance}m from ${locationCheck.closestLocation}. Please come to the office to mark logout.`, 'error');
+            // User-friendly message without revealing exact distance
+            showMessage(`❌ You need to be at the office to mark logout. Please come to the office location and try again.`, 'error');
             return false;
           }
         } else {
-          showMessage(`✅ Location verified: ${locationCheck.location} (${locationCheck.distance}m away)`, 'success');
+          showMessage(`✅ Location verified`, 'success');
         }
 
         // Mark logout
@@ -453,14 +473,26 @@
           clearSelection();
           return true;
         } else if (result.message === 'already logged out') {
-          showMessage('ℹ️ Already logged out today', 'info');
+          showMessage('ℹ️ You have already logged out today', 'info');
+          return false;
+        } else if (result.error && result.error.includes('No attendance record found')) {
+          showMessage('❌ You must mark attendance first before logging out. Please mark your attendance and then try logging out.', 'error');
           return false;
         } else {
           showMessage(result.error || 'Unable to mark logout. Please try again.', 'error');
           return false;
         }
       } catch (error) {
-        showMessage(error.message || 'Location check failed. Please try again.', 'error');
+        // Handle different types of errors gracefully
+        if (error.message.includes('Permission denied') || error.message.includes('User denied')) {
+          showMessage('❌ Location access is required to mark logout. Please allow location access and try again.', 'error');
+        } else if (error.message.includes('timeout')) {
+          showMessage('❌ Location check timed out. Please check your GPS signal and try again.', 'error');
+        } else if (error.message.includes('Position unavailable')) {
+          showMessage('❌ Unable to determine your location. Please check your GPS settings and try again.', 'error');
+        } else {
+          showMessage('❌ Unable to verify your location. Please try again.', 'error');
+        }
         return false;
       } finally {
         showLoading(false);
