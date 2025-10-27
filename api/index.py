@@ -207,14 +207,22 @@ def mark_logout(service, spreadsheet_id, employee_id, latitude=None, longitude=N
                 break
         
         if not attendance_row_index:
-            return {"ok": False, "error": "No attendance record found for today. Please mark your attendance first before logging out."}
+            return {"ok": False, "error": "You haven't logged in today. Please mark your attendance first before logging out."}
         
         # 5. Check if already logged out
         attendance_row = rows[attendance_row_index - 1]  # Convert to 0-based index
         if len(attendance_row) >= 6 and attendance_row[5]:  # logout_time column exists and has value
-            return {"ok": False, "error": "Already logged out today. You have already marked your logout for today."}
+            return {"ok": False, "error": "You have already logged out today. No action needed."}
 
-        # 6. Update the logout_time in the attendance record
+        # 6. Check device session if device_id provided - ensure same user who logged in is logging out
+        if device_id:
+            session_check = check_device_session_for_employee(service, spreadsheet_id, device_id, date_iso, employee_id)
+            if not session_check["ok"]:
+                return {"ok": False, "error": "Failed to verify your login session. Please try again."}
+            if session_check["exists"] and session_check["employee_id"] != int(employee_id):
+                return {"ok": False, "error": f"You are logged in as employee #{session_check['employee_id']} and cannot logout as employee #{employee_id}. Please use the same device you used to log in."}
+
+        # 7. Update the logout_time in the attendance record
         # First, ensure the row has enough columns
         while len(attendance_row) < 6:
             attendance_row.append('')
@@ -479,6 +487,34 @@ def check_device_session(service, spreadsheet_id, device_id, date):
         return {"ok": True, "exists": False}
     except Exception as e:
         app.logger.error(f"Error in check_device_session: {e}")
+        return {"ok": False, "error": "Failed to check device session.", "details": str(e)}
+
+def check_device_session_for_employee(service, spreadsheet_id, device_id, date, employee_id):
+    """Check if device has submitted attendance for the given date and return the employee_id."""
+    try:
+        # Try to get the AttendanceSessions sheet
+        try:
+            result = service.values().get(
+                spreadsheetId=spreadsheet_id,
+                range='AttendanceSessions!A:D'
+            ).execute()
+            rows = result.get('values', [])
+        except:
+            # If sheet doesn't exist, create it
+            create_sessions_sheet(service, spreadsheet_id)
+            return {"ok": True, "exists": False}
+        
+        if not rows or len(rows) < 2:
+            return {"ok": True, "exists": False}
+        
+        # Check if device_id + date combination exists and get the employee_id
+        for row in rows[1:]:
+            if len(row) >= 3 and row[0] == device_id and row[1] == date:
+                return {"ok": True, "exists": True, "employee_id": int(row[2])}
+        
+        return {"ok": True, "exists": False}
+    except Exception as e:
+        app.logger.error(f"Error in check_device_session_for_employee: {e}")
         return {"ok": False, "error": "Failed to check device session.", "details": str(e)}
 
 def save_device_session(service, spreadsheet_id, device_id, date, employee_id):

@@ -486,6 +486,23 @@
       }
     }
 
+    // Check if employee has logged in today
+    async function hasEmployeeLoggedInToday(employeeId) {
+      try {
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        const result = await apiGet('attendance', { view: 'day', date: today });
+        
+        if (result.ok && result.rows) {
+          const employeeRecord = result.rows.find(row => row.id == employeeId);
+          return employeeRecord && employeeRecord['0'] && employeeRecord['0'].trim() !== '';
+        }
+        return false;
+      } catch (error) {
+        console.error('Error checking employee login status:', error);
+        return false; // Assume not logged in if check fails
+      }
+    }
+
     // Save device session
     async function saveDeviceSession(employeeId) {
       try {
@@ -509,8 +526,6 @@
         // Get current location
         currentLocation = await getCurrentLocation();
         
-        // Show debug information
-        showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
         
         // Check if within office radius
         const locationCheck = isWithinOfficeRadius(currentLocation.lat, currentLocation.lon);
@@ -574,13 +589,20 @@
     async function checkLocationAndLogout(employeeId) {
       try {
         showLoading(true);
+        showMessage('📍 Checking your login status...', 'info');
+
+        // First check if employee has logged in today
+        const hasLoggedIn = await hasEmployeeLoggedInToday(employeeId);
+        if (!hasLoggedIn) {
+          showMessage('❌ You haven\'t logged in today. Please mark your attendance first before logging out.', 'error');
+          return false;
+        }
+
         showMessage('📍 Verifying your location for logout...', 'info');
 
         // Get current location
         currentLocation = await getCurrentLocation();
         
-        // Show debug information
-        showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
         
         // Check if within office radius
         const locationCheck = isWithinOfficeRadius(currentLocation.lat, currentLocation.lon);
@@ -599,6 +621,7 @@
           employee_id: Number(employeeId),
           latitude: currentLocation.lat,
           longitude: currentLocation.lon,
+          device_id: deviceId,
           testing_mode: false
         });
         
@@ -611,8 +634,11 @@
         } else if (result.message === 'already logged out' || (result.error && result.error.includes('Already logged out'))) {
           showMessage('ℹ️ You have already logged out today. No action needed.', 'info');
           return false;
-        } else if (result.error && result.error.includes('No attendance record found')) {
-          showMessage('❌ You must mark your attendance first before logging out. Please mark your attendance and then try logging out again.', 'error');
+        } else if (result.error && (result.error.includes("haven't logged in today") || result.error.includes('No attendance record found'))) {
+          showMessage('❌ You haven\'t logged in today. Please mark your attendance first before logging out.', 'error');
+          return false;
+        } else if (result.error && result.error.includes('cannot logout as employee')) {
+          showMessage(result.error, 'error');
           return false;
         } else if (result.error && result.error.includes('Employee not found')) {
           showMessage('❌ Your employee account was not found or is inactive. Please contact HR for assistance.', 'error');
