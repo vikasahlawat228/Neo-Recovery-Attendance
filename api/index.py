@@ -215,15 +215,15 @@ def mark_logout(service, spreadsheet_id, employee_id, latitude=None, longitude=N
         
         # 5. Check if already logged out
         attendance_row = rows[attendance_row_index - 1]  # Convert to 0-based index
-        if len(attendance_row) >= 6 and attendance_row[5]:  # departure_time column exists and has value
+        if len(attendance_row) >= 6 and attendance_row[5]:  # logout_time column exists and has value
             return {"ok": False, "error": "Already logged out today"}
 
-        # 6. Update the departure_time in the attendance record
+        # 6. Update the logout_time in the attendance record
         # First, ensure the row has enough columns
         while len(attendance_row) < 6:
             attendance_row.append('')
         
-        attendance_row[5] = time_hhmm  # Set departure_time
+        attendance_row[5] = time_hhmm  # Set logout_time
         
         # Update the specific row
         service.values().update(
@@ -298,22 +298,31 @@ def delete_employee(service, spreadsheet_id, employee_id):
     return update_employee(service, spreadsheet_id, employee_id, {"active": False})
 
 def get_attendance_matrix(service, spreadsheet_id, month):
-    """Gets the monthly attendance data."""
+    """Gets the monthly attendance data with login and logout times."""
     try:
         employees = get_employees(service, spreadsheet_id)
         if isinstance(employees, dict) and "error" in employees:
             return employees # Propagate error
         emp_map = {emp['id']: emp['name'] for emp in employees}
         
-        result = service.values().get(spreadsheetId=spreadsheet_id, range='Attendance!A:D').execute()
+        # Read all columns including logout_time (column F)
+        result = service.values().get(spreadsheetId=spreadsheet_id, range='Attendance!A:F').execute()
         rows = result.get('values', [])
         
         attendance_data = {}
         for row in rows[1:]:
             if len(row) >= 4 and row[0] and row[0].startswith(month):
-                date_str, emp_id, _, time = row
+                date_str, emp_id, _, arrival_time = row
+                logout_time = row[5] if len(row) > 5 else ''  # logout_time is in column F (index 5)
                 day = int(date_str.split('-')[2])
-                attendance_data[f"{emp_id}|{day}"] = time
+                
+                # Format: "arrival_time - logout_time" or just "arrival_time" if no logout
+                if logout_time:
+                    time_display = f"{arrival_time} - {logout_time}"
+                else:
+                    time_display = arrival_time
+                
+                attendance_data[f"{emp_id}|{day}"] = time_display
 
         year, month_num = map(int, month.split('-'))
         days_in_month = calendar.monthrange(year, month_num)[1]
