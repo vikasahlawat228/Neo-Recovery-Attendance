@@ -105,7 +105,7 @@ def get_employee_by_id(service, spreadsheet_id, employee_id):
             return emp
     return None
 
-def mark_attendance(service, spreadsheet_id, employee_id, latitude=None, longitude=None, device_id=None):
+def mark_attendance(service, spreadsheet_id, employee_id, latitude=None, longitude=None, device_id=None, testing_mode=False):
     """Marks attendance for an employee by appending a row to the 'Attendance' sheet."""
     try:
         # 1. Validate employee
@@ -113,11 +113,13 @@ def mark_attendance(service, spreadsheet_id, employee_id, latitude=None, longitu
         if not employee:
             return {"ok": False, "error": "Employee not found or inactive"}
 
-        # 2. Validate location if provided
-        if latitude is not None and longitude is not None:
+        # 2. Validate location if provided and not in testing mode
+        if latitude is not None and longitude is not None and not testing_mode:
             location_validation = validate_location(latitude, longitude)
             if not location_validation["ok"]:
                 return {"ok": False, "error": location_validation["error"]}
+        elif testing_mode:
+            app.logger.info(f"🧪 TESTING MODE: Location validation bypassed for employee {employee_id}")
 
         # 3. Check device session if device_id provided
         if device_id:
@@ -441,11 +443,12 @@ def handle_attendance_post():
     latitude = body.get('latitude')
     longitude = body.get('longitude')
     device_id = body.get('device_id')
+    testing_mode = body.get('testing_mode', False)
     
     if not emp_id:
         return jsonify({"ok": False, "error": "employee_id is required"}), 400
     
-    data = mark_attendance(service, spreadsheet_id, emp_id, latitude, longitude, device_id)
+    data = mark_attendance(service, spreadsheet_id, emp_id, latitude, longitude, device_id, testing_mode)
     status = 404 if 'error' in data and data.get("error") != "already marked" else 200
     return jsonify(data), status
 

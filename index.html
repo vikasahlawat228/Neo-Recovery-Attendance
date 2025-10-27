@@ -386,7 +386,8 @@
         const result = await apiPost('attendance', { 
           employee_id: Number(employeeId),
           latitude: currentLocation.lat,
-          longitude: currentLocation.lon
+          longitude: currentLocation.lon,
+          testing_mode: TESTING_MODE
         });
         
         if (result.ok && result.marked_at) {
