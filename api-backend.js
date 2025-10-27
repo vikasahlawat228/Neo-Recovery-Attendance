@@ -78,8 +78,9 @@ async function handleResponse(response) {
     
     // Try to parse error body as JSON for better error messages
     let errorMessage = `HTTP error! status: ${response.status}`;
+    let errorData = null;
     try {
-      const errorData = JSON.parse(errorBody);
+      errorData = JSON.parse(errorBody);
       if (errorData.error) {
         errorMessage = errorData.error;
       }
@@ -98,7 +99,13 @@ async function handleResponse(response) {
       errorMessage = "Network error. Please check your internet connection and try again.";
     }
     
-    throw new Error(errorMessage);
+    // Return error response instead of throwing exception
+    // This allows the frontend to handle specific error messages properly
+    if (errorData) {
+      return errorData; // Return the full error object with ok: false, error: "..."
+    } else {
+      return { ok: false, error: errorMessage };
+    }
   }
   return response.json();
 }
