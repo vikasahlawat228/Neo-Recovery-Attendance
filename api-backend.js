@@ -1,5 +1,6 @@
 // Neo Recovery Attendance API Client - Backend Version
 // Connects to the Vercel serverless backend.
+// Updated: Fixed error handling to return error objects instead of throwing exceptions
 
 const API_BASE = window.API_BASE || '/api'; // Use window.API_BASE for local dev, relative path for Vercel
 
@@ -33,7 +34,8 @@ async function apiPost(path, body = {}) {
     return await handleResponse(response);
   } catch (error) {
     console.error('API POST Error:', error);
-    throw error;
+    // Return error object instead of throwing
+    return { ok: false, error: error.message };
   }
 }
 
@@ -71,6 +73,7 @@ async function apiDelete(path, id) {
 }
 
 // Helper function to handle API responses
+// Updated: Fixed error handling to return error objects instead of throwing exceptions
 async function handleResponse(response) {
   if (!response.ok) {
     const errorBody = await response.text();
@@ -101,6 +104,7 @@ async function handleResponse(response) {
     
     // Return error response instead of throwing exception
     // This allows the frontend to handle specific error messages properly
+    console.log("Returning error object instead of throwing:", errorData || { ok: false, error: errorMessage });
     if (errorData) {
       return errorData; // Return the full error object with ok: false, error: "..."
     } else {
