@@ -314,8 +314,8 @@ def get_attendance_matrix(service, spreadsheet_id, month):
                 logout_time = row[5] if len(row) > 5 else ''  # logout_time is in column F (index 5)
                 day = int(date_str.split('-')[2])
                 
-                # Format: "arrival_time - logout_time" or just "arrival_time" if no logout
-                if logout_time:
+                # Format: "HH:MM - HH:MM" or just "HH:MM" if no logout
+                if logout_time and logout_time.strip():
                     time_display = f"{arrival_time} - {logout_time}"
                 else:
                     time_display = arrival_time
@@ -568,7 +568,7 @@ def validate_location(latitude, longitude):
         # Office locations (same as frontend)
         allowed_locations = [
             {"lat": 12.9716, "lon": 77.5946, "radius": 50},
-            {"lat": 12.9784, "lon": 77.6008, "radius": 50},
+            {"lat": 12.980768, "lon": 77.678600, "radius": 50},
             {"lat": 28.66925, "lon": 77.1107778, "radius": 50}
         ]
         

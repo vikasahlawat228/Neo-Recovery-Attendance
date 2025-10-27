@@ -135,6 +135,20 @@
     td.early-departure::after {
       content: " 🏃";
     }
+    td.late-arrival.early-departure::after {
+      content: " ⏰🏃";
+    }
+    /* Style for attendance cells with times */
+    td:not(.name) {
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      min-width: 80px;
+    }
+    /* Style for cells with both login and logout */
+    td:not(.name):not(:empty) {
+      text-align: center;
+      padding: 6px 4px;
+    }
     .attendance-grid {
       overflow: auto;
       max-height: 600px;
@@ -559,6 +573,7 @@
       const departureTime = parts[1] || '';
       
       let className = '';
+      let displayContent = timeDisplay;
       
       // Check for late arrival
       if (isTimeLate(arrivalTime, loginTime)) {
@@ -570,7 +585,14 @@
         className = className ? 'late-arrival early-departure' : 'early-departure';
       }
       
-      return { content: timeDisplay, className };
+      // Enhance display format for better readability
+      if (departureTime) {
+        displayContent = `${arrivalTime} → ${departureTime}`;
+      } else {
+        displayContent = `In: ${arrivalTime}`;
+      }
+      
+      return { content: displayContent, className };
     }
 
     async function loadMonth() {
