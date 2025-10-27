@@ -927,14 +927,7 @@
         setDefaultDay();
         // Small delay to ensure input is set and then load data
         setTimeout(async () => {
-          const dayDateInput = document.getElementById('dayDate');
-          if (dayDateInput && dayDateInput.value) {
-            console.log('Loading day view with date:', dayDateInput.value);
-            await loadDay();
-          } else {
-            console.error('Day date not set properly');
-            showMessage('Please select a date for day view', 'error');
-          }
+          await loadDay();
         }, 100);
       }
     }
@@ -968,9 +961,6 @@
       const dayDateInput = document.getElementById('dayDate');
       if (dayDateInput) {
         dayDateInput.value = todayDate;
-        console.log('Set default day date to:', todayDate);
-      } else {
-        console.error('Day date input element not found');
       }
     }
 
@@ -1075,10 +1065,6 @@
             html += `<tr><td class="name">${row.name}</td>`;
             for (let d = 0; d < 7; d++) {
               const time = row[d] || '';
-              // Debug: Check what's in the data for Oct 28 (index 1 in the week)
-              if (d === 1 && weekDates[d] === '2025-10-28') {
-                console.log(`Week view - Row ${rowIndex} (${row.name}) for Oct 28:`, time);
-              }
               const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
               html += `<td class="${cellData.className}">${cellData.content}</td>`;
             }
@@ -1104,11 +1090,7 @@
       const dayDateInput = document.getElementById('dayDate');
       const date = dayDateInput ? dayDateInput.value : '';
       
-      console.log('loadDay called with date:', date);
-      console.log('dayDateInput element:', dayDateInput);
-      
       if (!date) {
-        console.error('No date selected for day view');
         showMessage('Please select a date', 'error');
         return;
       }
@@ -1117,9 +1099,7 @@
         const table = document.getElementById('grid');
         table.innerHTML = '<tbody><tr><td colspan="100" class="loading"><div class="spinner"></div><div>Loading attendance data...</div></td></tr></tbody>';
         
-        console.log('Loading day data for date:', date);
         const result = await apiGet('attendance', { view: 'day', date: date });
-        console.log('Day view API result:', result);
         currentData = result;
         
         if (!result.ok) {
@@ -1127,12 +1107,6 @@
         }
         
         const rows = result.rows;
-        console.log('Day view rows:', rows);
-        console.log('Day view rows length:', rows.length);
-        if (rows.length > 0) {
-          console.log('First row sample:', rows[0]);
-          console.log('Row keys:', Object.keys(rows[0]));
-        }
         
         // Build table header with date information
         const dateObj = new Date(date);
@@ -1147,23 +1121,17 @@
         // Build table rows
         html += '<tbody>';
         if (rows && rows.length > 0) {
-          console.log('Building table rows for day view...');
-          rows.forEach((row, index) => {
+          rows.forEach(row => {
             const time = row['0'] || '';  // Use '0' key like week/month views
-            console.log(`Row ${index}:`, row, 'Time:', time);
             const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
-            console.log(`Cell data for row ${index}:`, cellData);
             html += `<tr><td class="name">${row.name}</td><td class="${cellData.className}">${cellData.content}</td></tr>`;
           });
         } else {
-          console.log('No rows to display for day view');
           html += '<tr><td colspan="2" style="text-align: center; color: #6c757d; padding: 20px;">No attendance data found for this date</td></tr>';
         }
         
         html += '</tbody>';
-        console.log('Final HTML for day view:', html);
         table.innerHTML = html;
-        console.log('Table innerHTML after setting:', table.innerHTML);
         
         showMessage(`Loaded attendance data for ${formattedDate}`, 'success');
       } catch (error) {
