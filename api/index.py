@@ -427,10 +427,18 @@ def get_attendance_day(service, spreadsheet_id, date):
         print(f"DEBUG: Looking for attendance data for date: {date}")
         print(f"DEBUG: Total rows from sheet: {len(rows)}")
         
+        # Debug: Show first few rows to understand the data format
+        print(f"DEBUG: First 5 rows from sheet:")
+        for i, row in enumerate(rows[1:6]):  # Show first 5 data rows
+            print(f"  Row {i+1}: {row}")
+        
         for row in rows[1:]:
             if len(row) >= 4:
-                print(f"DEBUG: Row date: {row[0]}, looking for: {date}, match: {row[0] == date}")
-                if row[0] == date:
+                row_date = row[0]
+                print(f"DEBUG: Row date: '{row_date}', looking for: '{date}', match: {row_date == date}")
+                
+                # Try exact match first
+                if row_date == date:
                     emp_id = row[1]
                     arrival_time = row[3]  # arrival_time is in column D (index 3)
                     logout_time = row[5] if len(row) > 5 else ''  # logout_time is in column F (index 5)
@@ -445,6 +453,10 @@ def get_attendance_day(service, spreadsheet_id, date):
                     
                     attendance_data[emp_id] = time_display
                     print(f"DEBUG: Stored time_display: {time_display}")
+                else:
+                    # Debug: Check if it's a date format issue
+                    if row_date and len(row_date) >= 10:
+                        print(f"DEBUG: Date format check - row_date: '{row_date}' (len: {len(row_date)}), target: '{date}' (len: {len(date)})")
         
         print(f"DEBUG: Final attendance_data: {attendance_data}")
 
