@@ -393,6 +393,8 @@
         if (result.ok && result.marked_at) {
           // Save device session
           await saveDeviceSession(employeeId);
+          // Save the selected employee ID to localStorage for next time
+          localStorage.setItem('lastSelectedEmployeeId', employeeId);
           showMessage(`✅ Attendance marked successfully at ${result.marked_at}`, 'success');
           clearSelection();
           return true;
@@ -450,6 +452,8 @@
         });
         
         if (result.ok && result.logged_out_at) {
+          // Save the selected employee ID to localStorage for next time
+          localStorage.setItem('lastSelectedEmployeeId', employeeId);
           showMessage(`✅ Logout marked successfully at ${result.logged_out_at}`, 'success');
           clearSelection();
           return true;
@@ -521,12 +525,20 @@
         return;
       }
       
+      // Get the last selected employee from localStorage
+      const lastSelectedEmployeeId = localStorage.getItem('lastSelectedEmployeeId');
+      
       filteredEmployees.forEach(emp => {
         const option = document.createElement('option');
         option.value = emp.id;
         option.textContent = `${emp.id} — ${emp.name}`;
         select.appendChild(option);
       });
+      
+      // Set the last selected employee as default if it exists in the filtered list
+      if (lastSelectedEmployeeId && filteredEmployees.some(emp => emp.id == lastSelectedEmployeeId)) {
+        select.value = lastSelectedEmployeeId;
+      }
     }
 
     function filterEmployees(searchTerm) {
@@ -594,9 +606,10 @@
 
     function clearSelection() {
       setTimeout(() => {
-        document.getElementById('emp').value = '';
+        // Clear search but keep the last selected employee
         document.getElementById('search').value = '';
         filterEmployees('');
+        // The last selected employee will be automatically selected by populateEmployeeSelect
       }, 2000);
     }
 

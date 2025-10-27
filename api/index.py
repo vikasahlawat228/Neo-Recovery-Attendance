@@ -453,6 +453,115 @@ def create_sessions_sheet(service, spreadsheet_id):
         app.logger.error(f"Error creating sessions sheet: {e}")
         return False
 
+def get_office_hours(service, spreadsheet_id):
+    """Gets the office hours configuration from the 'OfficeHours' sheet."""
+    try:
+        # Try to get the OfficeHours sheet
+        try:
+            result = service.values().get(
+                spreadsheetId=spreadsheet_id,
+                range='OfficeHours!A:B'
+            ).execute()
+            rows = result.get('values', [])
+        except:
+            # If sheet doesn't exist, create it with default values
+            create_office_hours_sheet(service, spreadsheet_id)
+            return {"ok": True, "hours": {"loginTime": "10:00", "logoutTime": "18:00"}}
+        
+        if not rows or len(rows) < 2:
+            # If no data, return defaults
+            return {"ok": True, "hours": {"loginTime": "10:00", "logoutTime": "18:00"}}
+        
+        # Parse the data
+        hours = {}
+        for row in rows[1:]:  # Skip header
+            if len(row) >= 2:
+                key = row[0].lower().replace(' ', '')
+                value = row[1]
+                if key == 'logintime':
+                    hours['loginTime'] = value
+                elif key == 'logouttime':
+                    hours['logoutTime'] = value
+        
+        # Ensure we have both values
+        if 'loginTime' not in hours:
+            hours['loginTime'] = "10:00"
+        if 'logoutTime' not in hours:
+            hours['logoutTime'] = "18:00"
+        
+        return {"ok": True, "hours": hours}
+    except Exception as e:
+        app.logger.error(f"Error in get_office_hours: {e}")
+        return {"ok": False, "error": "Failed to get office hours.", "details": str(e)}
+
+def set_office_hours(service, spreadsheet_id, login_time, logout_time):
+    """Sets the office hours configuration in the 'OfficeHours' sheet."""
+    try:
+        # Try to get the OfficeHours sheet
+        try:
+            service.values().get(
+                spreadsheetId=spreadsheet_id,
+                range='OfficeHours!A1'
+            ).execute()
+        except:
+            # If sheet doesn't exist, create it
+            create_office_hours_sheet(service, spreadsheet_id)
+        
+        # Update the office hours
+        values = [
+            ['Setting', 'Value'],
+            ['LoginTime', login_time],
+            ['LogoutTime', logout_time]
+        ]
+        
+        service.values().update(
+            spreadsheetId=spreadsheet_id,
+            range='OfficeHours!A1',
+            valueInputOption='USER_ENTERED',
+            body={'values': values}
+        ).execute()
+        
+        return {"ok": True, "hours": {"loginTime": login_time, "logoutTime": logout_time}}
+    except Exception as e:
+        app.logger.error(f"Error in set_office_hours: {e}")
+        return {"ok": False, "error": "Failed to set office hours.", "details": str(e)}
+
+def create_office_hours_sheet(service, spreadsheet_id):
+    """Create the OfficeHours sheet with default values."""
+    try:
+        # Create the sheet
+        sheet_body = {
+            'requests': [{
+                'addSheet': {
+                    'properties': {
+                        'title': 'OfficeHours'
+                    }
+                }
+            }]
+        }
+        service.batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body=sheet_body
+        ).execute()
+        
+        # Add default values
+        values = [
+            ['Setting', 'Value'],
+            ['LoginTime', '10:00'],
+            ['LogoutTime', '18:00']
+        ]
+        service.values().update(
+            spreadsheetId=spreadsheet_id,
+            range='OfficeHours!A1',
+            valueInputOption='USER_ENTERED',
+            body={'values': values}
+        ).execute()
+        
+        return True
+    except Exception as e:
+        app.logger.error(f"Error creating office hours sheet: {e}")
+        return False
+
 def validate_location(latitude, longitude):
     """Validate if the provided coordinates are within allowed office locations."""
     try:
@@ -596,6 +705,27 @@ def handle_attendance_session():
             return jsonify({"ok": False, "error": "device_id, date, and employee_id are required"}), 400
         
         data = save_device_session(service, spreadsheet_id, device_id, date, employee_id)
+        status = 500 if 'error' in data else 200
+        return jsonify(data), status
+
+@app.route("/api/office-hours", methods=['GET', 'POST'])
+def handle_office_hours():
+    service, spreadsheet_id = get_sheets_service()
+    
+    if request.method == 'GET':
+        data = get_office_hours(service, spreadsheet_id)
+        status = 500 if 'error' in data else 200
+        return jsonify(data), status
+    
+    elif request.method == 'POST':
+        body = request.get_json()
+        login_time = body.get('loginTime')
+        logout_time = body.get('logoutTime')
+        
+        if not login_time or not logout_time:
+            return jsonify({"ok": False, "error": "loginTime and logoutTime are required"}), 400
+        
+        data = set_office_hours(service, spreadsheet_id, login_time, logout_time)
         status = 500 if 'error' in data else 200
         return jsonify(data), status
 

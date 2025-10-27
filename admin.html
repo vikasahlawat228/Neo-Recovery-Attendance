@@ -46,14 +46,14 @@
       margin: 16px 0;
       flex-wrap: wrap;
     }
-    input[type="text"], input[type="month"] {
+    input[type="text"], input[type="month"], input[type="time"] {
       padding: 12px 16px;
       border: 2px solid #e1e5e9;
       border-radius: 8px;
       font-size: 1rem;
       transition: border-color 0.3s ease;
     }
-    input[type="text"]:focus, input[type="month"]:focus {
+    input[type="text"]:focus, input[type="month"]:focus, input[type="time"]:focus {
       outline: none;
       border-color: #667eea;
     }
@@ -123,6 +123,17 @@
       font-weight: 500;
       text-align: left;
       z-index: 5;
+    }
+    td.late-arrival, td.early-departure {
+      background-color: #ffebee !important;
+      color: #c62828;
+      font-weight: 500;
+    }
+    td.late-arrival::after {
+      content: " ⏰";
+    }
+    td.early-departure::after {
+      content: " 🏃";
     }
     .attendance-grid {
       overflow: auto;
@@ -293,6 +304,21 @@
       </div>
     </div>
 
+    <!-- Office Hours Configuration Section -->
+    <div class="section">
+      <h2>🕐 Office Hours Configuration</h2>
+      
+      <div class="row">
+        <label for="loginTime" style="font-weight: 500;">Ideal Login Time:</label>
+        <input id="loginTime" type="time" value="10:00" />
+        <label for="logoutTime" style="font-weight: 500;">Ideal Logout Time:</label>
+        <input id="logoutTime" type="time" value="18:00" />
+        <button id="saveOfficeHours" class="btn-primary">💾 Save Office Hours</button>
+      </div>
+      
+      <div id="officeHoursMessage"></div>
+    </div>
+
     <!-- Employee Management Section -->
     <div class="section">
       <h2>👥 Employee Management</h2>
@@ -339,6 +365,7 @@
   <script src="api-backend.js"></script>
   <script>
     let currentMonthData = null;
+    let officeHours = { loginTime: "10:00", logoutTime: "18:00" };
 
     async function refreshEmployees() {
       try {
@@ -441,6 +468,111 @@
       }
     }
 
+    async function loadOfficeHours() {
+      try {
+        const result = await apiGet('office-hours');
+        if (result.ok) {
+          officeHours = result.hours;
+          document.getElementById('loginTime').value = officeHours.loginTime;
+          document.getElementById('logoutTime').value = officeHours.logoutTime;
+        }
+      } catch (error) {
+        console.error("Failed to load office hours:", error);
+        // Keep default values
+      }
+    }
+
+    async function saveOfficeHours() {
+      const loginTime = document.getElementById('loginTime').value;
+      const logoutTime = document.getElementById('logoutTime').value;
+      
+      if (!loginTime || !logoutTime) {
+        showOfficeHoursMessage('Please set both login and logout times', 'error');
+        return;
+      }
+      
+      try {
+        const result = await apiPost('office-hours', {
+          loginTime: loginTime,
+          logoutTime: logoutTime
+        });
+        
+        if (result.ok) {
+          officeHours = { loginTime, logoutTime };
+          showOfficeHoursMessage('Office hours saved successfully', 'success');
+          // Reload attendance data to update visual indicators
+          if (currentMonthData) {
+            await loadMonth();
+          }
+        } else {
+          showOfficeHoursMessage(result.error || 'Failed to save office hours', 'error');
+        }
+      } catch (error) {
+        showOfficeHoursMessage('Failed to save office hours', 'error');
+      }
+    }
+
+    function showOfficeHoursMessage(text, type = 'info') {
+      const msgEl = document.getElementById('officeHoursMessage');
+      msgEl.textContent = text;
+      msgEl.className = `message ${type}`;
+      
+      // Auto-hide success messages
+      if (type === 'success') {
+        setTimeout(() => {
+          msgEl.textContent = '';
+          msgEl.className = '';
+        }, 3000);
+      }
+    }
+
+    function isTimeLate(timeStr, idealTime) {
+      if (!timeStr || !idealTime) return false;
+      
+      const [timeHour, timeMin] = timeStr.split(':').map(Number);
+      const [idealHour, idealMin] = idealTime.split(':').map(Number);
+      
+      const timeMinutes = timeHour * 60 + timeMin;
+      const idealMinutes = idealHour * 60 + idealMin;
+      
+      return timeMinutes > idealMinutes;
+    }
+
+    function isTimeEarly(timeStr, idealTime) {
+      if (!timeStr || !idealTime) return false;
+      
+      const [timeHour, timeMin] = timeStr.split(':').map(Number);
+      const [idealHour, idealMin] = idealTime.split(':').map(Number);
+      
+      const timeMinutes = timeHour * 60 + timeMin;
+      const idealMinutes = idealHour * 60 + idealMin;
+      
+      return timeMinutes < idealMinutes;
+    }
+
+    function formatAttendanceCell(timeDisplay, loginTime, logoutTime) {
+      if (!timeDisplay) return { content: '', className: '' };
+      
+      // Handle both "HH:MM" and "HH:MM - HH:MM" formats
+      const parts = timeDisplay.split(' - ');
+      const arrivalTime = parts[0];
+      const departureTime = parts[1] || '';
+      
+      let className = '';
+      
+      // Check for late arrival
+      if (isTimeLate(arrivalTime, loginTime)) {
+        className = 'late-arrival';
+      }
+      
+      // Check for early departure (only if both arrival and departure times exist)
+      if (departureTime && isTimeEarly(departureTime, logoutTime)) {
+        className = className ? 'late-arrival early-departure' : 'early-departure';
+      }
+      
+      return { content: timeDisplay, className };
+    }
+
     async function loadMonth() {
       const month = document.getElementById('month').value;
       if (!month) {
@@ -475,7 +607,8 @@
           html += `<tr><td class="name">${row.name}</td>`;
           for (let d = 1; d <= days; d++) {
             const time = row[d] || '';
-            html += `<td>${time}</td>`;
+            const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
+            html += `<td class="${cellData.className}">${cellData.content}</td>`;
           }
           html += '</tr>';
         });
@@ -569,6 +702,7 @@
     document.getElementById('load').onclick = loadMonth;
     document.getElementById('export').onclick = exportToCSV;
     document.getElementById('month').onchange = loadMonth;
+    document.getElementById('saveOfficeHours').onclick = saveOfficeHours;
 
     // Initialize current month
     (function initMonth() {
@@ -580,6 +714,7 @@
 
     // Initialize the app
     (async function init() {
+      await loadOfficeHours();
       await refreshEmployees();
       await loadMonth();
     })();
