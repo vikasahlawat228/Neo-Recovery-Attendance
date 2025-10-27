@@ -911,18 +911,24 @@
       if (viewType === 'month') {
         document.getElementById('monthControls').style.display = 'flex';
         setDefaultMonth();
-        // Automatically load month data
-        await loadMonth();
+        // Small delay to ensure input is set
+        setTimeout(async () => {
+          await loadMonth();
+        }, 100);
       } else if (viewType === 'week') {
         document.getElementById('weekControls').style.display = 'flex';
         setDefaultWeek();
-        // Automatically load week data
-        await loadWeek();
+        // Small delay to ensure input is set
+        setTimeout(async () => {
+          await loadWeek();
+        }, 100);
       } else if (viewType === 'day') {
         document.getElementById('dayControls').style.display = 'flex';
         setDefaultDay();
-        // Automatically load day data
-        await loadDay();
+        // Small delay to ensure input is set
+        setTimeout(async () => {
+          await loadDay();
+        }, 100);
       }
     }
 
@@ -964,7 +970,9 @@
         const table = document.getElementById('grid');
         table.innerHTML = '<tbody><tr><td colspan="100" class="loading"><div class="spinner"></div><div>Loading attendance data...</div></td></tr></tbody>';
         
+        console.log('Loading month data for month:', month);
         const result = await apiGet('attendance', { view: 'month', month: month });
+        console.log('Month view API result:', result);
         currentData = result;
         
         if (!result.ok) {
@@ -973,6 +981,8 @@
         
         const days = result.daysInMonth;
         const rows = result.rows;
+        console.log('Month view days:', days);
+        console.log('Month view rows:', rows);
         
         // Build table header
         let html = '<thead><tr><th class="sticky">Employee</th>';
@@ -983,21 +993,26 @@
         
         // Build table rows
         html += '<tbody>';
-        rows.forEach(row => {
-          html += `<tr><td class="name">${row.name}</td>`;
-          for (let d = 1; d <= days; d++) {
-            const time = row[d] || '';
-            const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
-            html += `<td class="${cellData.className}">${cellData.content}</td>`;
-          }
-          html += '</tr>';
-        });
+        if (rows && rows.length > 0) {
+          rows.forEach(row => {
+            html += `<tr><td class="name">${row.name}</td>`;
+            for (let d = 1; d <= days; d++) {
+              const time = row[d] || '';
+              const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
+              html += `<td class="${cellData.className}">${cellData.content}</td>`;
+            }
+            html += '</tr>';
+          });
+        } else {
+          html += '<tr><td colspan="32" style="text-align: center; color: #6c757d; padding: 20px;">No attendance data found for this month</td></tr>';
+        }
         
         html += '</tbody>';
         table.innerHTML = html;
         
         showMessage(`Loaded attendance data for ${month}`, 'success');
       } catch (error) {
+        console.error('Month view error:', error);
         const table = document.getElementById('grid');
         table.innerHTML = `<tbody><tr><td colspan="100" style="text-align: center; color: #dc3545; padding: 40px;">Failed to load attendance data. ${error.message}</td></tr></tbody>`;
         showMessage('Failed to load attendance data', 'error');
@@ -1015,7 +1030,9 @@
         const table = document.getElementById('grid');
         table.innerHTML = '<tbody><tr><td colspan="100" class="loading"><div class="spinner"></div><div>Loading attendance data...</div></td></tr></tbody>';
         
+        console.log('Loading week data for week start:', weekStart);
         const result = await apiGet('attendance', { view: 'week', week_start: weekStart });
+        console.log('Week view API result:', result);
         currentData = result;
         
         if (!result.ok) {
@@ -1024,6 +1041,8 @@
         
         const weekDates = result.weekDates;
         const rows = result.rows;
+        console.log('Week view weekDates:', weekDates);
+        console.log('Week view rows:', rows);
         
         // Build table header
         let html = '<thead><tr><th class="sticky">Employee</th>';
@@ -1036,21 +1055,26 @@
         
         // Build table rows
         html += '<tbody>';
-        rows.forEach(row => {
-          html += `<tr><td class="name">${row.name}</td>`;
-          for (let d = 0; d < 7; d++) {
-            const time = row[d] || '';
-            const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
-            html += `<td class="${cellData.className}">${cellData.content}</td>`;
-          }
-          html += '</tr>';
-        });
+        if (rows && rows.length > 0) {
+          rows.forEach(row => {
+            html += `<tr><td class="name">${row.name}</td>`;
+            for (let d = 0; d < 7; d++) {
+              const time = row[d] || '';
+              const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
+              html += `<td class="${cellData.className}">${cellData.content}</td>`;
+            }
+            html += '</tr>';
+          });
+        } else {
+          html += '<tr><td colspan="8" style="text-align: center; color: #6c757d; padding: 20px;">No attendance data found for this week</td></tr>';
+        }
         
         html += '</tbody>';
         table.innerHTML = html;
         
         showMessage(`Loaded attendance data for week starting ${weekStart}`, 'success');
       } catch (error) {
+        console.error('Week view error:', error);
         const table = document.getElementById('grid');
         table.innerHTML = `<tbody><tr><td colspan="100" style="text-align: center; color: #dc3545; padding: 40px;">Failed to load attendance data. ${error.message}</td></tr></tbody>`;
         showMessage('Failed to load attendance data', 'error');
@@ -1068,7 +1092,9 @@
         const table = document.getElementById('grid');
         table.innerHTML = '<tbody><tr><td colspan="100" class="loading"><div class="spinner"></div><div>Loading attendance data...</div></td></tr></tbody>';
         
+        console.log('Loading day data for date:', date);
         const result = await apiGet('attendance', { view: 'day', date: date });
+        console.log('Day view API result:', result);
         currentData = result;
         
         if (!result.ok) {
@@ -1076,23 +1102,29 @@
         }
         
         const rows = result.rows;
+        console.log('Day view rows:', rows);
         
         // Build table header
         let html = '<thead><tr><th class="sticky">Employee</th><th>Attendance</th></tr></thead>';
         
         // Build table rows
         html += '<tbody>';
-        rows.forEach(row => {
-          const time = row.attendance || '';
-          const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
-          html += `<tr><td class="name">${row.name}</td><td class="${cellData.className}">${cellData.content}</td></tr>`;
-        });
+        if (rows && rows.length > 0) {
+          rows.forEach(row => {
+            const time = row.attendance || '';
+            const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
+            html += `<tr><td class="name">${row.name}</td><td class="${cellData.className}">${cellData.content}</td></tr>`;
+          });
+        } else {
+          html += '<tr><td colspan="2" style="text-align: center; color: #6c757d; padding: 20px;">No attendance data found for this date</td></tr>';
+        }
         
         html += '</tbody>';
         table.innerHTML = html;
         
         showMessage(`Loaded attendance data for ${date}`, 'success');
       } catch (error) {
+        console.error('Day view error:', error);
         const table = document.getElementById('grid');
         table.innerHTML = `<tbody><tr><td colspan="100" style="text-align: center; color: #dc3545; padding: 40px;">Failed to load attendance data. ${error.message}</td></tr></tbody>`;
         showMessage('Failed to load attendance data', 'error');
