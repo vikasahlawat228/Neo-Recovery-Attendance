@@ -481,18 +481,33 @@
       .section.collapsible {
         cursor: pointer;
         position: relative;
+        transition: all 0.2s ease;
       }
 
-      .section.collapsible::after {
+      .section.collapsible:hover {
+        background-color: var(--gray-100);
+      }
+
+      .section.collapsible h2 {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-right: 2rem;
+      }
+
+      .section.collapsible h2::after {
         content: '▼';
         position: absolute;
-        right: 1rem;
-        top: 1rem;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
         transition: transform 0.2s ease;
+        font-size: 0.875rem;
+        color: var(--gray-500);
       }
 
-      .section.collapsible.collapsed::after {
-        transform: rotate(-90deg);
+      .section.collapsible.collapsed h2::after {
+        transform: translateY(-50%) rotate(-90deg);
       }
 
       .section.collapsible.collapsed .section-content {
@@ -501,6 +516,12 @@
 
       .section.collapsible .section-content {
         margin-top: 1rem;
+      }
+
+      /* Ensure the click area is properly defined */
+      .section.collapsible h2 {
+        margin: 0;
+        padding: 1rem 0 0.5rem 0;
       }
     }
 
@@ -1221,6 +1242,9 @@
       
       // Set up default view (week view with current week)
       await switchViewType();
+      
+      // Initialize collapsible sections after everything is loaded
+      initCollapsibleSections();
     })();
 
     // Password Protection
@@ -1264,33 +1288,55 @@
     // Mobile collapsible sections functionality
     function initCollapsibleSections() {
       const collapsibleSections = document.querySelectorAll('.section.collapsible');
+      const isMobile = window.innerWidth < 768;
       
-      collapsibleSections.forEach(section => {
-        const isMobile = window.innerWidth < 768;
-        
+      console.log('Initializing collapsible sections:', collapsibleSections.length, 'sections, mobile:', isMobile);
+      
+      collapsibleSections.forEach((section, index) => {
         if (isMobile) {
-          // On mobile, start with all sections collapsed except the first one
-          const isFirstSection = section === collapsibleSections[0];
-          if (!isFirstSection) {
+          // On mobile, keep Office Hours (index 0) and Attendance Dashboard (index 2) expanded by default
+          if (index === 0 || index === 2) {
+            section.classList.remove('collapsed');
+            console.log('Expanded section:', section.querySelector('h2').textContent);
+          } else {
             section.classList.add('collapsed');
+            console.log('Collapsed section:', section.querySelector('h2').textContent);
           }
           
-          section.addEventListener('click', (e) => {
-            // Don't toggle if clicking on form elements
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
-              return;
-            }
-            section.classList.toggle('collapsed');
-          });
+          // Remove existing event listeners to prevent duplicates
+          section.removeEventListener('click', handleSectionClick);
+          section.addEventListener('click', handleSectionClick);
         } else {
           // On desktop, remove collapsed state
           section.classList.remove('collapsed');
+          section.removeEventListener('click', handleSectionClick);
         }
       });
     }
 
-    // Initialize collapsible sections on load and resize
-    initCollapsibleSections();
+    function handleSectionClick(e) {
+      console.log('Section clicked:', e.target.tagName, e.target.textContent);
+      
+      // Don't toggle if clicking on form elements or their labels
+      if (e.target.tagName === 'INPUT' || 
+          e.target.tagName === 'SELECT' || 
+          e.target.tagName === 'BUTTON' ||
+          e.target.tagName === 'LABEL' ||
+          e.target.closest('input') ||
+          e.target.closest('select') ||
+          e.target.closest('button')) {
+        console.log('Click ignored - form element');
+        return;
+      }
+      
+      const section = e.currentTarget;
+      const isCollapsed = section.classList.contains('collapsed');
+      console.log('Toggling section:', section.querySelector('h2').textContent, 'from', isCollapsed ? 'collapsed' : 'expanded');
+      
+      section.classList.toggle('collapsed');
+    }
+
+    // Initialize collapsible sections on resize
     window.addEventListener('resize', initCollapsibleSections);
   </script>
 </body>

@@ -75,7 +75,30 @@ async function handleResponse(response) {
   if (!response.ok) {
     const errorBody = await response.text();
     console.error("API Error Response:", errorBody);
-    throw new Error(`HTTP error! status: ${response.status}`);
+    
+    // Try to parse error body as JSON for better error messages
+    let errorMessage = `HTTP error! status: ${response.status}`;
+    try {
+      const errorData = JSON.parse(errorBody);
+      if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } catch (e) {
+      // If parsing fails, use the original error message
+    }
+    
+    // Provide user-friendly messages based on status codes
+    if (response.status === 400) {
+      errorMessage = errorMessage || "Invalid request. Please check your input and try again.";
+    } else if (response.status === 404) {
+      errorMessage = errorMessage || "Requested resource not found. Please try again.";
+    } else if (response.status === 500) {
+      errorMessage = errorMessage || "Server error occurred. Please try again in a few moments.";
+    } else if (response.status === 0) {
+      errorMessage = "Network error. Please check your internet connection and try again.";
+    }
+    
+    throw new Error(errorMessage);
   }
   return response.json();
 }

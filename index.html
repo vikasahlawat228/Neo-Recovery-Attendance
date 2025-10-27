@@ -585,11 +585,13 @@
         // Check if within office radius
         const locationCheck = isWithinOfficeRadius(currentLocation.lat, currentLocation.lon);
         if (!locationCheck.allowed) {
-          // User-friendly message without revealing exact distance
-          showMessage(`❌ You need to be at the office to mark logout. Please come to the office location and try again.`, 'error');
+          // User-friendly message with helpful guidance
+          const distance = locationCheck.distance || 'unknown';
+          const closestLocation = locationCheck.closestLocation || 'office';
+          showMessage(`📍 You're currently ${distance}m away from the nearest office location (${closestLocation}). Please move closer to the office building and try again.`, 'error');
           return false;
         } else {
-          showMessage(`✅ Location verified`, 'success');
+          showMessage(`✅ Location verified - you're at ${locationCheck.location}`, 'success');
         }
 
         // Mark logout
@@ -607,28 +609,44 @@
           clearSelection();
           return true;
         } else if (result.message === 'already logged out' || (result.error && result.error.includes('Already logged out'))) {
-          showMessage('ℹ️ You have already logged out today', 'info');
+          showMessage('ℹ️ You have already logged out today. No action needed.', 'info');
           return false;
         } else if (result.error && result.error.includes('No attendance record found')) {
-          showMessage('❌ You must mark attendance first before logging out. Please mark your attendance and then try logging out.', 'error');
+          showMessage('❌ You must mark your attendance first before logging out. Please mark your attendance and then try logging out again.', 'error');
+          return false;
+        } else if (result.error && result.error.includes('Employee not found')) {
+          showMessage('❌ Your employee account was not found or is inactive. Please contact HR for assistance.', 'error');
+          return false;
+        } else if (result.error && result.error.includes('Location is outside allowed office area')) {
+          showMessage('❌ Your current location is outside the allowed office area. Please ensure you are at the office location and try again.', 'error');
+          return false;
+        } else if (result.error && result.error.includes('Location validation failed')) {
+          showMessage('❌ Unable to verify your location. Please check your GPS settings and try again.', 'error');
+          return false;
+        } else if (result.error && result.error.includes('Failed to mark logout')) {
+          showMessage('❌ System error occurred while marking logout. Please try again in a few moments. If the problem persists, contact IT support.', 'error');
           return false;
         } else {
-          showMessage(result.error || 'Unable to mark logout. Please try again.', 'error');
+          showMessage(result.error || '❌ Unable to mark logout due to an unexpected error. Please try again or contact support if the issue continues.', 'error');
           return false;
         }
       } catch (error) {
         // Handle different types of errors gracefully
         console.error('Error in checkLocationAndLogout:', error);
         if (error.message.includes('Permission denied') || error.message.includes('User denied')) {
-          showMessage('❌ Location access is required to mark logout. Please allow location access and try again.', 'error');
+          showMessage('❌ Location access is required to mark logout. Please allow location access in your browser settings and try again.', 'error');
         } else if (error.message.includes('timeout')) {
-          showMessage('❌ Location check timed out. Please check your GPS signal and try again.', 'error');
+          showMessage('❌ Location check timed out. Please ensure you have a strong GPS signal and try again.', 'error');
         } else if (error.message.includes('Position unavailable')) {
-          showMessage('❌ Unable to determine your location. Please check your GPS settings and try again.', 'error');
+          showMessage('❌ Unable to determine your location. Please check your GPS settings, ensure you are outdoors or near a window, and try again.', 'error');
         } else if (error.message.includes('already logged out') || error.message.includes('Already logged out')) {
-          showMessage('ℹ️ You have already logged out today', 'info');
+          showMessage('ℹ️ You have already logged out today. No action needed.', 'info');
+        } else if (error.message.includes('Network error') || error.message.includes('Failed to fetch')) {
+          showMessage('❌ Network connection error. Please check your internet connection and try again.', 'error');
+        } else if (error.message.includes('Server error')) {
+          showMessage('❌ Server error occurred. Please try again in a few moments. If the problem persists, contact IT support.', 'error');
         } else {
-          showMessage('❌ Unable to verify your location. Please try again.', 'error');
+          showMessage('❌ Unable to verify your location due to an unexpected error. Please check your internet connection and try again.', 'error');
         }
         return false;
       } finally {

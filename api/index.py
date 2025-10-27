@@ -178,7 +178,7 @@ def mark_logout(service, spreadsheet_id, employee_id, latitude=None, longitude=N
         # 1. Validate employee
         employee = get_employee_by_id(service, spreadsheet_id, int(employee_id))
         if not employee:
-            return {"ok": False, "error": "Employee not found or inactive"}
+            return {"ok": False, "error": "Employee not found or inactive. Please contact HR to verify your employee status."}
 
         # 2. Validate location if provided
         if latitude is not None and longitude is not None:
@@ -207,12 +207,12 @@ def mark_logout(service, spreadsheet_id, employee_id, latitude=None, longitude=N
                 break
         
         if not attendance_row_index:
-            return {"ok": False, "error": "No attendance record found for today. Please mark attendance first."}
+            return {"ok": False, "error": "No attendance record found for today. Please mark your attendance first before logging out."}
         
         # 5. Check if already logged out
         attendance_row = rows[attendance_row_index - 1]  # Convert to 0-based index
         if len(attendance_row) >= 6 and attendance_row[5]:  # logout_time column exists and has value
-            return {"ok": False, "error": "Already logged out today"}
+            return {"ok": False, "error": "Already logged out today. You have already marked your logout for today."}
 
         # 6. Update the logout_time in the attendance record
         # First, ensure the row has enough columns
@@ -233,7 +233,7 @@ def mark_logout(service, spreadsheet_id, employee_id, latitude=None, longitude=N
 
     except Exception as e:
         app.logger.error(f"Error in mark_logout: {e}")
-        return {"ok": False, "error": "Failed to mark logout.", "details": str(e)}
+        return {"ok": False, "error": "System error occurred while marking logout. Please try again in a few moments. If the problem persists, contact IT support.", "details": str(e)}
 
 def add_employee(service, spreadsheet_id, name):
     """Adds a new employee to the 'Employees' sheet."""
@@ -689,10 +689,10 @@ def validate_location(latitude, longitude):
         if min_distance <= 200:
             return {"ok": True, "distance": round(min_distance)}
         
-        return {"ok": False, "error": "Location is outside allowed office area"}
+        return {"ok": False, "error": f"Location is outside allowed office area. You are {round(min_distance)}m away from the nearest office location. Please ensure you are at the office building and try again."}
     except Exception as e:
         app.logger.error(f"Error in validate_location: {e}")
-        return {"ok": False, "error": "Location validation failed", "details": str(e)}
+        return {"ok": False, "error": "Unable to verify your location. Please check your GPS settings and try again.", "details": str(e)}
 
 # --- Flask Routes ---
 @app.route("/api/employees", methods=['GET', 'POST'])
@@ -748,7 +748,7 @@ def handle_logout_post():
     testing_mode = body.get('testing_mode', False)
     
     if not emp_id:
-        return jsonify({"ok": False, "error": "employee_id is required"}), 400
+        return jsonify({"ok": False, "error": "Employee ID is required to mark logout. Please select your employee profile and try again."}), 400
     
     data = mark_logout(service, spreadsheet_id, emp_id, latitude, longitude, device_id, testing_mode)
     status = 404 if 'error' in data and data.get("error") != "already logged out" else 200
