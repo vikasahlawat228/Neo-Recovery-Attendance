@@ -205,11 +205,12 @@
     let allEmployees = [];
     let filteredEmployees = [];
     
-    // Office locations with 50m radius
-    const ALLOWED_LOCATIONS = [
-      { name: "Main Office", lat: 12.9716, lon: 77.5946, radius: 50 },
-      { name: "Test Office", lat: 12.9784, lon: 77.6008, radius: 50 }
-    ];
+      // Office locations with 50m radius
+      const ALLOWED_LOCATIONS = [
+        { name: "Main Office", lat: 12.9716, lon: 77.5946, radius: 50 },
+        { name: "Test Office", lat: 12.9784, lon: 77.6008, radius: 50 },
+        { name: "Additional Test Location", lat: 28.66925, lon: 77.1107778, radius: 50 }
+      ];
     
     // Testing mode - set to true to bypass location check
     let TESTING_MODE = false; // Change to true for testing
