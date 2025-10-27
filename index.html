@@ -375,14 +375,9 @@
         // Check if within office radius
         const locationCheck = isWithinOfficeRadius(currentLocation.lat, currentLocation.lon);
         if (!locationCheck.allowed) {
-          if (TESTING_MODE) {
-            console.log('🧪 TESTING MODE: Bypassing location check');
-            showMessage(`🧪 TESTING MODE: Location check bypassed. You are ${locationCheck.distance}m from ${locationCheck.closestLocation}.`, 'info');
-          } else {
-            // User-friendly message without revealing exact distance
-            showMessage(`❌ You need to be at the office to mark attendance. Please come to the office location and try again.`, 'error');
-            return false;
-          }
+          // User-friendly message without revealing exact distance
+          showMessage(`❌ You need to be at the office to mark attendance. Please come to the office location and try again.`, 'error');
+          return false;
         } else {
           showMessage(`✅ Location verified`, 'success');
         }
@@ -448,14 +443,9 @@
         // Check if within office radius
         const locationCheck = isWithinOfficeRadius(currentLocation.lat, currentLocation.lon);
         if (!locationCheck.allowed) {
-          if (TESTING_MODE) {
-            console.log('🧪 TESTING MODE: Bypassing location check for logout');
-            showMessage(`🧪 TESTING MODE: Location check bypassed. You are ${locationCheck.distance}m from ${locationCheck.closestLocation}.`, 'info');
-          } else {
-            // User-friendly message without revealing exact distance
-            showMessage(`❌ You need to be at the office to mark logout. Please come to the office location and try again.`, 'error');
-            return false;
-          }
+          // User-friendly message without revealing exact distance
+          showMessage(`❌ You need to be at the office to mark logout. Please come to the office location and try again.`, 'error');
+          return false;
         } else {
           showMessage(`✅ Location verified`, 'success');
         }

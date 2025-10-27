@@ -113,13 +113,11 @@ def mark_attendance(service, spreadsheet_id, employee_id, latitude=None, longitu
         if not employee:
             return {"ok": False, "error": "Employee not found or inactive"}
 
-        # 2. Validate location if provided and not in testing mode
-        if latitude is not None and longitude is not None and not testing_mode:
+        # 2. Validate location if provided
+        if latitude is not None and longitude is not None:
             location_validation = validate_location(latitude, longitude)
             if not location_validation["ok"]:
                 return {"ok": False, "error": location_validation["error"]}
-        elif testing_mode:
-            app.logger.info(f"🧪 TESTING MODE: Location validation bypassed for employee {employee_id}")
 
         # 3. Check device session if device_id provided
         if device_id:
@@ -182,13 +180,11 @@ def mark_logout(service, spreadsheet_id, employee_id, latitude=None, longitude=N
         if not employee:
             return {"ok": False, "error": "Employee not found or inactive"}
 
-        # 2. Validate location if provided and not in testing mode
-        if latitude is not None and longitude is not None and not testing_mode:
+        # 2. Validate location if provided
+        if latitude is not None and longitude is not None:
             location_validation = validate_location(latitude, longitude)
             if not location_validation["ok"]:
                 return {"ok": False, "error": location_validation["error"]}
-        elif testing_mode:
-            app.logger.info(f"🧪 TESTING MODE: Location validation bypassed for logout employee {employee_id}")
 
         # 3. Get current date and time in IST
         tz = ZoneInfo("Asia/Kolkata")
