@@ -186,12 +186,6 @@
       <button class="btn" id="logout" style="background: #f44336;">🚪 Mark Logout</button>
     </div>
     
-    <!-- Testing Controls -->
-    <div style="margin-top: 20px; text-align: center;">
-      <button id="toggleTesting" style="padding: 8px 16px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
-        🧪 Enable Testing Mode
-      </button>
-    </div>
     
     <div class="loading" id="loading">
       <div class="spinner"></div>
@@ -216,8 +210,7 @@
         { name: "Additional Test Location", lat: 28.66925, lon: 77.1107778, radius: 50 }
       ];
     
-    // Testing mode - set to true to bypass location check
-    let TESTING_MODE = false; // Change to true for testing
+    // All three locations are always allowed
     
     // Device fingerprinting and session management
     let deviceId = null;
@@ -263,7 +256,7 @@
       return R * c; // Distance in meters
     }
 
-    // Check if location is within allowed radius
+    // Check if location is within allowed radius - always allow all three locations
     function isWithinOfficeRadius(lat, lon) {
       console.log(`🔍 Checking location: ${lat}, ${lon}`);
       
@@ -276,7 +269,7 @@
         }
       }
       
-      // Find closest location for debugging
+      // If not within any specific radius, still allow if within a reasonable distance (200m)
       let closestLocation = null;
       let minDistance = Infinity;
       for (const location of ALLOWED_LOCATIONS) {
@@ -287,7 +280,13 @@
         }
       }
       
-      console.log(`❌ Outside office area. Closest: ${closestLocation.name} at ${Math.round(minDistance)}m`);
+      // Allow if within 200m of any office location
+      if (minDistance <= 200) {
+        console.log(`✅ Within reasonable distance of ${closestLocation.name} at ${Math.round(minDistance)}m`);
+        return { allowed: true, location: closestLocation.name, distance: Math.round(minDistance) };
+      }
+      
+      console.log(`❌ Too far from office areas. Closest: ${closestLocation.name} at ${Math.round(minDistance)}m`);
       return { allowed: false, distance: Math.round(minDistance), closestLocation: closestLocation.name };
     }
 
@@ -303,10 +302,6 @@
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const { latitude, longitude, accuracy } = position.coords;
-            // Only show accuracy warning in testing mode
-            if (TESTING_MODE && accuracy > 20) {
-              showMessage(`⚠️ GPS accuracy is ${Math.round(accuracy)}m. Please move to a better location or try again.`, 'error');
-            }
             resolve({ lat: latitude, lon: longitude, accuracy });
           },
           (error) => {
@@ -367,10 +362,8 @@
         // Get current location
         currentLocation = await getCurrentLocation();
         
-        // Show debug information (only in debug mode)
-        if (TESTING_MODE) {
-          showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
-        }
+        // Show debug information
+        showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
         
         // Check if within office radius
         const locationCheck = isWithinOfficeRadius(currentLocation.lat, currentLocation.lon);
@@ -394,7 +387,7 @@
           employee_id: Number(employeeId),
           latitude: currentLocation.lat,
           longitude: currentLocation.lon,
-          testing_mode: TESTING_MODE
+          testing_mode: false
         });
         
         if (result.ok && result.marked_at) {
@@ -435,10 +428,8 @@
         // Get current location
         currentLocation = await getCurrentLocation();
         
-        // Show debug information (only in debug mode)
-        if (TESTING_MODE) {
-          showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
-        }
+        // Show debug information
+        showDebugInfo(`Your location: ${currentLocation.lat.toFixed(6)}, ${currentLocation.lon.toFixed(6)} (accuracy: ${Math.round(currentLocation.accuracy)}m)`);
         
         // Check if within office radius
         const locationCheck = isWithinOfficeRadius(currentLocation.lat, currentLocation.lon);
@@ -455,7 +446,7 @@
           employee_id: Number(employeeId),
           latitude: currentLocation.lat,
           longitude: currentLocation.lon,
-          testing_mode: TESTING_MODE
+          testing_mode: false
         });
         
         if (result.ok && result.logged_out_at) {
@@ -600,19 +591,6 @@
       await checkLocationAndLogout(id);
     };
 
-    document.getElementById('toggleTesting').onclick = () => {
-      TESTING_MODE = !TESTING_MODE;
-      const button = document.getElementById('toggleTesting');
-      if (TESTING_MODE) {
-        button.textContent = '🧪 Testing Mode ON';
-        button.style.background = '#4caf50';
-        showMessage('🧪 Testing mode enabled - location check bypassed', 'info');
-      } else {
-        button.textContent = '🧪 Enable Testing Mode';
-        button.style.background = '#ff9800';
-        showMessage('🧪 Testing mode disabled - location check active', 'info');
-      }
-    };
 
     function clearSelection() {
       setTimeout(() => {

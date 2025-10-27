@@ -472,10 +472,22 @@ def validate_location(latitude, longitude):
             c = 2 * 0.78539816339 * (a ** 0.5)
             return R * c
         
+        # Check if within any office radius
         for location in allowed_locations:
             distance = haversine_distance(latitude, longitude, location["lat"], location["lon"])
             if distance <= location["radius"]:
                 return {"ok": True, "distance": round(distance)}
+        
+        # If not within specific radius, check if within reasonable distance (200m) of any office
+        min_distance = float('inf')
+        for location in allowed_locations:
+            distance = haversine_distance(latitude, longitude, location["lat"], location["lon"])
+            if distance < min_distance:
+                min_distance = distance
+        
+        # Allow if within 200m of any office location
+        if min_distance <= 200:
+            return {"ok": True, "distance": round(min_distance)}
         
         return {"ok": False, "error": "Location is outside allowed office area"}
     except Exception as e:
