@@ -439,12 +439,14 @@ def get_attendance_day(service, spreadsheet_id, date):
                 else:
                     time_display = arrival_time
                 
-                attendance_data[emp_id] = time_display
+                # Normalize key to string to match week/month matrix behavior
+                attendance_data[str(emp_id)] = time_display
 
         # Create matrix rows - same structure as week view but only one day (index 0)
         matrix_rows = []
         for emp_id, name in emp_map.items():
-            row_data = {"id": emp_id, "name": name, "0": attendance_data.get(emp_id, "")}
+            # Access with string key for consistency
+            row_data = {"id": emp_id, "name": name, "0": attendance_data.get(str(emp_id), "")}
             matrix_rows.append(row_data)
             
         return {"ok": True, "date": date, "rows": matrix_rows}
