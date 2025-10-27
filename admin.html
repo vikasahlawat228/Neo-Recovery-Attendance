@@ -1071,10 +1071,14 @@
         // Build table rows
         html += '<tbody>';
         if (rows && rows.length > 0) {
-          rows.forEach(row => {
+          rows.forEach((row, rowIndex) => {
             html += `<tr><td class="name">${row.name}</td>`;
             for (let d = 0; d < 7; d++) {
               const time = row[d] || '';
+              // Debug: Check what's in the data for Oct 28 (index 1 in the week)
+              if (d === 1 && weekDates[d] === '2025-10-28') {
+                console.log(`Week view - Row ${rowIndex} (${row.name}) for Oct 28:`, time);
+              }
               const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
               html += `<td class="${cellData.className}">${cellData.content}</td>`;
             }

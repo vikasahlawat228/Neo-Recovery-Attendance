@@ -384,6 +384,10 @@ def get_attendance_week(service, spreadsheet_id, week_start_date):
                 # Find which day of the week this is (0-6)
                 day_index = week_dates.index(date_str)
                 
+                # Debug: Check for Oct 28 data
+                if date_str == '2025-10-28':
+                    print(f"DEBUG WEEK: Found Oct 28 data for emp_id {emp_id}: arrival={arrival_time}, logout={logout_time}, day_index={day_index}")
+                
                 # Format: "HH:MM - HH:MM" or just "HH:MM" if no logout
                 if logout_time and logout_time.strip():
                     time_display = f"{arrival_time} - {logout_time}"
@@ -391,6 +395,9 @@ def get_attendance_week(service, spreadsheet_id, week_start_date):
                     time_display = arrival_time
                 
                 attendance_data[f"{emp_id}|{day_index}"] = time_display
+                
+                if date_str == '2025-10-28':
+                    print(f"DEBUG WEEK: Stored time_display for Oct 28: {time_display}")
 
         matrix_rows = []
         for emp_id, name in emp_map.items():
@@ -417,19 +424,29 @@ def get_attendance_day(service, spreadsheet_id, date):
         rows = result.get('values', [])
         
         attendance_data = {}
+        print(f"DEBUG: Looking for attendance data for date: {date}")
+        print(f"DEBUG: Total rows from sheet: {len(rows)}")
+        
         for row in rows[1:]:
-            if len(row) >= 4 and row[0] == date:
-                emp_id = row[1]
-                arrival_time = row[3]  # arrival_time is in column D (index 3)
-                logout_time = row[5] if len(row) > 5 else ''  # logout_time is in column F (index 5)
-                
-                # Format: "HH:MM - HH:MM" or just "HH:MM" if no logout
-                if logout_time and logout_time.strip():
-                    time_display = f"{arrival_time} - {logout_time}"
-                else:
-                    time_display = arrival_time
-                
-                attendance_data[emp_id] = time_display
+            if len(row) >= 4:
+                print(f"DEBUG: Row date: {row[0]}, looking for: {date}, match: {row[0] == date}")
+                if row[0] == date:
+                    emp_id = row[1]
+                    arrival_time = row[3]  # arrival_time is in column D (index 3)
+                    logout_time = row[5] if len(row) > 5 else ''  # logout_time is in column F (index 5)
+                    
+                    print(f"DEBUG: Found attendance for emp_id {emp_id}: arrival={arrival_time}, logout={logout_time}")
+                    
+                    # Format: "HH:MM - HH:MM" or just "HH:MM" if no logout
+                    if logout_time and logout_time.strip():
+                        time_display = f"{arrival_time} - {logout_time}"
+                    else:
+                        time_display = arrival_time
+                    
+                    attendance_data[emp_id] = time_display
+                    print(f"DEBUG: Stored time_display: {time_display}")
+        
+        print(f"DEBUG: Final attendance_data: {attendance_data}")
 
         matrix_rows = []
         for emp_id, name in emp_map.items():
