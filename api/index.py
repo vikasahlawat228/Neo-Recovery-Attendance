@@ -337,6 +337,97 @@ def get_attendance_matrix(service, spreadsheet_id, month):
         app.logger.error(f"Error in get_attendance_matrix: {e}")
         return {"ok": False, "error": "Failed to get attendance matrix.", "details": str(e)}
 
+def get_attendance_week(service, spreadsheet_id, week_start_date):
+    """Gets the weekly attendance data with login and logout times."""
+    try:
+        employees = get_employees(service, spreadsheet_id)
+        if isinstance(employees, dict) and "error" in employees:
+            return employees # Propagate error
+        emp_map = {emp['id']: emp['name'] for emp in employees}
+        
+        # Calculate week end date (6 days after start)
+        from datetime import datetime, timedelta
+        start_date = datetime.strptime(week_start_date, '%Y-%m-%d')
+        end_date = start_date + timedelta(days=6)
+        
+        # Read all columns including logout_time (column F)
+        result = service.values().get(spreadsheetId=spreadsheet_id, range='Attendance!A:F').execute()
+        rows = result.get('values', [])
+        
+        attendance_data = {}
+        week_dates = []
+        current_date = start_date
+        for i in range(7):  # 7 days in a week
+            week_dates.append(current_date.strftime('%Y-%m-%d'))
+            current_date += timedelta(days=1)
+        
+        for row in rows[1:]:
+            if len(row) >= 4 and row[0] in week_dates:
+                date_str = row[0]
+                emp_id = row[1]
+                arrival_time = row[3]  # arrival_time is in column D (index 3)
+                logout_time = row[5] if len(row) > 5 else ''  # logout_time is in column F (index 5)
+                
+                # Find which day of the week this is (0-6)
+                day_index = week_dates.index(date_str)
+                
+                # Format: "HH:MM - HH:MM" or just "HH:MM" if no logout
+                if logout_time and logout_time.strip():
+                    time_display = f"{arrival_time} - {logout_time}"
+                else:
+                    time_display = arrival_time
+                
+                attendance_data[f"{emp_id}|{day_index}"] = time_display
+
+        matrix_rows = []
+        for emp_id, name in emp_map.items():
+            row_data = {"id": emp_id, "name": name}
+            for day_index in range(7):
+                row_data[str(day_index)] = attendance_data.get(f"{emp_id}|{day_index}", "")
+            matrix_rows.append(row_data)
+            
+        return {"ok": True, "weekDates": week_dates, "rows": matrix_rows}
+    except Exception as e:
+        app.logger.error(f"Error in get_attendance_week: {e}")
+        return {"ok": False, "error": "Failed to get weekly attendance data.", "details": str(e)}
+
+def get_attendance_day(service, spreadsheet_id, date):
+    """Gets the daily attendance data with login and logout times."""
+    try:
+        employees = get_employees(service, spreadsheet_id)
+        if isinstance(employees, dict) and "error" in employees:
+            return employees # Propagate error
+        emp_map = {emp['id']: emp['name'] for emp in employees}
+        
+        # Read all columns including logout_time (column F)
+        result = service.values().get(spreadsheetId=spreadsheet_id, range='Attendance!A:F').execute()
+        rows = result.get('values', [])
+        
+        attendance_data = {}
+        for row in rows[1:]:
+            if len(row) >= 4 and row[0] == date:
+                emp_id = row[1]
+                arrival_time = row[3]  # arrival_time is in column D (index 3)
+                logout_time = row[5] if len(row) > 5 else ''  # logout_time is in column F (index 5)
+                
+                # Format: "HH:MM - HH:MM" or just "HH:MM" if no logout
+                if logout_time and logout_time.strip():
+                    time_display = f"{arrival_time} - {logout_time}"
+                else:
+                    time_display = arrival_time
+                
+                attendance_data[emp_id] = time_display
+
+        matrix_rows = []
+        for emp_id, name in emp_map.items():
+            row_data = {"id": emp_id, "name": name, "attendance": attendance_data.get(emp_id, "")}
+            matrix_rows.append(row_data)
+            
+        return {"ok": True, "date": date, "rows": matrix_rows}
+    except Exception as e:
+        app.logger.error(f"Error in get_attendance_day: {e}")
+        return {"ok": False, "error": "Failed to get daily attendance data.", "details": str(e)}
+
 def get_todays_attendance(service, spreadsheet_id):
     """Counts the number of attendance entries for the current day."""
     try:
@@ -667,10 +758,26 @@ def handle_logout_post():
 @app.route("/api/attendance", methods=['GET'])
 def handle_attendance_get():
     service, spreadsheet_id = get_sheets_service()
-    month = request.args.get('month')
-    if not month:
-        return jsonify({"ok": False, "error": "month parameter is required"}), 400
-    data = get_attendance_matrix(service, spreadsheet_id, month)
+    view_type = request.args.get('view', 'month')
+    
+    if view_type == 'month':
+        month = request.args.get('month')
+        if not month:
+            return jsonify({"ok": False, "error": "month parameter is required"}), 400
+        data = get_attendance_matrix(service, spreadsheet_id, month)
+    elif view_type == 'week':
+        week_start = request.args.get('week_start')
+        if not week_start:
+            return jsonify({"ok": False, "error": "week_start parameter is required"}), 400
+        data = get_attendance_week(service, spreadsheet_id, week_start)
+    elif view_type == 'day':
+        date = request.args.get('date')
+        if not date:
+            return jsonify({"ok": False, "error": "date parameter is required"}), 400
+        data = get_attendance_day(service, spreadsheet_id, date)
+    else:
+        return jsonify({"ok": False, "error": "Invalid view type. Use 'month', 'week', or 'day'"}), 400
+    
     status = 500 if 'error' in data else 200
     return jsonify(data), status
 

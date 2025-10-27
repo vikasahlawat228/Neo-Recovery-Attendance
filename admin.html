@@ -355,10 +355,36 @@
       <h2>📊 Attendance Dashboard</h2>
       
       <div class="row">
+        <label for="viewType" style="font-weight: 500;">View Type:</label>
+        <select id="viewType" style="padding: 8px 12px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 1rem;">
+          <option value="month">📅 Month View</option>
+          <option value="week">📆 Week View</option>
+          <option value="day">📋 Day View</option>
+        </select>
+      </div>
+      
+      <!-- Month View Controls -->
+      <div id="monthControls" class="row">
         <label for="month" style="font-weight: 500;">Select Month:</label>
         <input id="month" type="month" />
         <button id="load" class="btn-primary">📅 Load Data</button>
         <button id="export" class="btn-secondary">📄 Export CSV</button>
+      </div>
+      
+      <!-- Week View Controls -->
+      <div id="weekControls" class="row" style="display: none;">
+        <label for="weekStart" style="font-weight: 500;">Week Starting:</label>
+        <input id="weekStart" type="date" />
+        <button id="loadWeek" class="btn-primary">📆 Load Week</button>
+        <button id="exportWeek" class="btn-secondary">📄 Export CSV</button>
+      </div>
+      
+      <!-- Day View Controls -->
+      <div id="dayControls" class="row" style="display: none;">
+        <label for="dayDate" style="font-weight: 500;">Select Date:</label>
+        <input id="dayDate" type="date" />
+        <button id="loadDay" class="btn-primary">📋 Load Day</button>
+        <button id="exportDay" class="btn-secondary">📄 Export CSV</button>
       </div>
       
       <div class="attendance-grid">
@@ -367,7 +393,7 @@
             <tr>
               <td colspan="100" class="loading">
                 <div class="spinner"></div>
-                <div>Select a month to view attendance data</div>
+                <div>Select a view type and date to view attendance data</div>
               </td>
             </tr>
           </tbody>
@@ -378,7 +404,8 @@
 
   <script src="api-backend.js"></script>
   <script>
-    let currentMonthData = null;
+    let currentData = null;
+    let currentViewType = 'month';
     let officeHours = { loginTime: "10:00", logoutTime: "18:00" };
 
     async function refreshEmployees() {
@@ -595,6 +622,61 @@
       return { content: displayContent, className };
     }
 
+    // View type switching
+    function switchViewType() {
+      const viewType = document.getElementById('viewType').value;
+      currentViewType = viewType;
+      
+      // Hide all controls
+      document.getElementById('monthControls').style.display = 'none';
+      document.getElementById('weekControls').style.display = 'none';
+      document.getElementById('dayControls').style.display = 'none';
+      
+      // Show relevant controls
+      if (viewType === 'month') {
+        document.getElementById('monthControls').style.display = 'flex';
+        setDefaultMonth();
+      } else if (viewType === 'week') {
+        document.getElementById('weekControls').style.display = 'flex';
+        setDefaultWeek();
+      } else if (viewType === 'day') {
+        document.getElementById('dayControls').style.display = 'flex';
+        setDefaultDay();
+      }
+      
+      // Clear current data
+      currentData = null;
+      const table = document.getElementById('grid');
+      table.innerHTML = '<tbody><tr><td colspan="100" class="loading"><div class="spinner"></div><div>Select a date to view attendance data</div></td></tr></tbody>';
+    }
+
+    function setDefaultMonth() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      document.getElementById('month').value = `${yyyy}-${mm}`;
+    }
+
+    function setDefaultWeek() {
+      const now = new Date();
+      // Get Monday of current week
+      const dayOfWeek = now.getDay();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+      const yyyy = monday.getFullYear();
+      const mm = String(monday.getMonth() + 1).padStart(2, '0');
+      const dd = String(monday.getDate()).padStart(2, '0');
+      document.getElementById('weekStart').value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    function setDefaultDay() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      document.getElementById('dayDate').value = `${yyyy}-${mm}-${dd}`;
+    }
+
     async function loadMonth() {
       const month = document.getElementById('month').value;
       if (!month) {
@@ -606,8 +688,8 @@
         const table = document.getElementById('grid');
         table.innerHTML = '<tbody><tr><td colspan="100" class="loading"><div class="spinner"></div><div>Loading attendance data...</div></td></tr></tbody>';
         
-        const result = await apiGet('attendance', { month: month });
-        currentMonthData = result;
+        const result = await apiGet('attendance', { view: 'month', month: month });
+        currentData = result;
         
         if (!result.ok) {
           throw new Error(result.error || 'Failed to load data');
@@ -646,37 +728,170 @@
       }
     }
 
-    function exportToCSV() {
-      if (!currentMonthData || !currentMonthData.ok) {
-        showMessage('No data to export. Please load a month first.', 'error');
+    async function loadWeek() {
+      const weekStart = document.getElementById('weekStart').value;
+      if (!weekStart) {
+        showMessage('Please select a week start date', 'error');
         return;
       }
       
-      const month = document.getElementById('month').value;
-      const days = currentMonthData.daysInMonth;
-      const rows = currentMonthData.rows;
-      
-      // Create CSV content
-      let csv = 'Employee Name';
-      for (let d = 1; d <= days; d++) {
-        csv += `,Day ${d}`;
+      try {
+        const table = document.getElementById('grid');
+        table.innerHTML = '<tbody><tr><td colspan="100" class="loading"><div class="spinner"></div><div>Loading attendance data...</div></td></tr></tbody>';
+        
+        const result = await apiGet('attendance', { view: 'week', week_start: weekStart });
+        currentData = result;
+        
+        if (!result.ok) {
+          throw new Error(result.error || 'Failed to load data');
+        }
+        
+        const weekDates = result.weekDates;
+        const rows = result.rows;
+        
+        // Build table header
+        let html = '<thead><tr><th class="sticky">Employee</th>';
+        weekDates.forEach(date => {
+          const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'short' });
+          const dayNum = new Date(date).getDate();
+          html += `<th>${dayName} ${dayNum}</th>`;
+        });
+        html += '</tr></thead>';
+        
+        // Build table rows
+        html += '<tbody>';
+        rows.forEach(row => {
+          html += `<tr><td class="name">${row.name}</td>`;
+          for (let d = 0; d < 7; d++) {
+            const time = row[d] || '';
+            const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
+            html += `<td class="${cellData.className}">${cellData.content}</td>`;
+          }
+          html += '</tr>';
+        });
+        
+        html += '</tbody>';
+        table.innerHTML = html;
+        
+        showMessage(`Loaded attendance data for week starting ${weekStart}`, 'success');
+      } catch (error) {
+        const table = document.getElementById('grid');
+        table.innerHTML = `<tbody><tr><td colspan="100" style="text-align: center; color: #dc3545; padding: 40px;">Failed to load attendance data. ${error.message}</td></tr></tbody>`;
+        showMessage('Failed to load attendance data', 'error');
       }
-      csv += '\n';
+    }
+
+    async function loadDay() {
+      const date = document.getElementById('dayDate').value;
+      if (!date) {
+        showMessage('Please select a date', 'error');
+        return;
+      }
       
-      rows.forEach(row => {
-        csv += `"${row.name}"`;
+      try {
+        const table = document.getElementById('grid');
+        table.innerHTML = '<tbody><tr><td colspan="100" class="loading"><div class="spinner"></div><div>Loading attendance data...</div></td></tr></tbody>';
+        
+        const result = await apiGet('attendance', { view: 'day', date: date });
+        currentData = result;
+        
+        if (!result.ok) {
+          throw new Error(result.error || 'Failed to load data');
+        }
+        
+        const rows = result.rows;
+        
+        // Build table header
+        let html = '<thead><tr><th class="sticky">Employee</th><th>Attendance</th></tr></thead>';
+        
+        // Build table rows
+        html += '<tbody>';
+        rows.forEach(row => {
+          const time = row.attendance || '';
+          const cellData = formatAttendanceCell(time, officeHours.loginTime, officeHours.logoutTime);
+          html += `<tr><td class="name">${row.name}</td><td class="${cellData.className}">${cellData.content}</td></tr>`;
+        });
+        
+        html += '</tbody>';
+        table.innerHTML = html;
+        
+        showMessage(`Loaded attendance data for ${date}`, 'success');
+      } catch (error) {
+        const table = document.getElementById('grid');
+        table.innerHTML = `<tbody><tr><td colspan="100" style="text-align: center; color: #dc3545; padding: 40px;">Failed to load attendance data. ${error.message}</td></tr></tbody>`;
+        showMessage('Failed to load attendance data', 'error');
+      }
+    }
+
+    function exportToCSV() {
+      if (!currentData || !currentData.ok) {
+        showMessage('No data to export. Please load data first.', 'error');
+        return;
+      }
+      
+      let csv = '';
+      let filename = '';
+      
+      if (currentViewType === 'month') {
+        const month = document.getElementById('month').value;
+        const days = currentData.daysInMonth;
+        const rows = currentData.rows;
+        
+        csv = 'Employee Name';
         for (let d = 1; d <= days; d++) {
-          csv += `,"${row[d] || ''}"`;
+          csv += `,Day ${d}`;
         }
         csv += '\n';
-      });
+        
+        rows.forEach(row => {
+          csv += `"${row.name}"`;
+          for (let d = 1; d <= days; d++) {
+            csv += `,"${row[d] || ''}"`;
+          }
+          csv += '\n';
+        });
+        
+        filename = `attendance-${month}.csv`;
+      } else if (currentViewType === 'week') {
+        const weekStart = document.getElementById('weekStart').value;
+        const weekDates = currentData.weekDates;
+        const rows = currentData.rows;
+        
+        csv = 'Employee Name';
+        weekDates.forEach(date => {
+          const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'short' });
+          const dayNum = new Date(date).getDate();
+          csv += `,${dayName} ${dayNum}`;
+        });
+        csv += '\n';
+        
+        rows.forEach(row => {
+          csv += `"${row.name}"`;
+          for (let d = 0; d < 7; d++) {
+            csv += `,"${row[d] || ''}"`;
+          }
+          csv += '\n';
+        });
+        
+        filename = `attendance-week-${weekStart}.csv`;
+      } else if (currentViewType === 'day') {
+        const date = document.getElementById('dayDate').value;
+        const rows = currentData.rows;
+        
+        csv = 'Employee Name,Attendance\n';
+        rows.forEach(row => {
+          csv += `"${row.name}","${row.attendance || ''}"\n`;
+        });
+        
+        filename = `attendance-${date}.csv`;
+      }
       
       // Download CSV
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `attendance-${month}.csv`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -721,23 +936,33 @@
       }
     };
 
+    // View type switching
+    document.getElementById('viewType').onchange = switchViewType;
+    
+    // Month view
     document.getElementById('load').onclick = loadMonth;
     document.getElementById('export').onclick = exportToCSV;
     document.getElementById('month').onchange = loadMonth;
+    
+    // Week view
+    document.getElementById('loadWeek').onclick = loadWeek;
+    document.getElementById('exportWeek').onclick = exportToCSV;
+    document.getElementById('weekStart').onchange = loadWeek;
+    
+    // Day view
+    document.getElementById('loadDay').onclick = loadDay;
+    document.getElementById('exportDay').onclick = exportToCSV;
+    document.getElementById('dayDate').onchange = loadDay;
+    
     document.getElementById('saveOfficeHours').onclick = saveOfficeHours;
-
-    // Initialize current month
-    (function initMonth() {
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      document.getElementById('month').value = `${yyyy}-${mm}`;
-    })();
 
     // Initialize the app
     (async function init() {
       await loadOfficeHours();
       await refreshEmployees();
+      
+      // Set up default view (month view with current month)
+      switchViewType();
       await loadMonth();
     })();
 

@@ -459,7 +459,7 @@
           showMessage(`✅ Logout marked successfully at ${result.logged_out_at}`, 'success');
           clearSelection();
           return true;
-        } else if (result.message === 'already logged out') {
+        } else if (result.message === 'already logged out' || (result.error && result.error.includes('Already logged out'))) {
           showMessage('ℹ️ You have already logged out today', 'info');
           return false;
         } else if (result.error && result.error.includes('No attendance record found')) {
@@ -471,12 +471,15 @@
         }
       } catch (error) {
         // Handle different types of errors gracefully
+        console.error('Error in checkLocationAndLogout:', error);
         if (error.message.includes('Permission denied') || error.message.includes('User denied')) {
           showMessage('❌ Location access is required to mark logout. Please allow location access and try again.', 'error');
         } else if (error.message.includes('timeout')) {
           showMessage('❌ Location check timed out. Please check your GPS signal and try again.', 'error');
         } else if (error.message.includes('Position unavailable')) {
           showMessage('❌ Unable to determine your location. Please check your GPS settings and try again.', 'error');
+        } else if (error.message.includes('already logged out') || error.message.includes('Already logged out')) {
+          showMessage('ℹ️ You have already logged out today', 'info');
         } else {
           showMessage('❌ Unable to verify your location. Please try again.', 'error');
         }
