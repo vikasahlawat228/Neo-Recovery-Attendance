@@ -27,24 +27,33 @@ def get_sheets_service():
     creds_json_str = os.environ.get('GOOGLE_CREDENTIALS_JSON')
     spreadsheet_id = os.environ.get('SPREADSHEET_ID')
 
+    print(f"DEBUG: GOOGLE_CREDENTIALS_JSON exists: {bool(creds_json_str)}")
+    print(f"DEBUG: SPREADSHEET_ID: {spreadsheet_id}")
+
     if not spreadsheet_id:
         raise ValueError("Missing SPREADSHEET_ID environment variable")
 
     try:
         if creds_json_str:
             # Use environment variable
+            print("DEBUG: Using environment variable credentials")
             creds_info = json.loads(creds_json_str)
             creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
         else:
             # Use credentials file
+            print("DEBUG: Using credentials file")
             creds_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'credentials.json')
             creds = service_account.Credentials.from_service_account_file(creds_path, scopes=SCOPES)
         
+        print("DEBUG: Building Google Sheets service...")
         service = build('sheets', 'v4', credentials=creds)
+        print("DEBUG: Google Sheets service built successfully")
         return service.spreadsheets(), spreadsheet_id
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        print(f"DEBUG: JSON decode error: {e}")
         raise ValueError("Failed to decode GOOGLE_CREDENTIALS_JSON")
     except Exception as e:
+        print(f"DEBUG: Error in get_sheets_service: {e}")
         # Re-raise other exceptions for better error visibility in Vercel logs
         raise e
 
@@ -748,17 +757,49 @@ def validate_location(latitude, longitude):
         return {"ok": False, "error": "Unable to verify your location. Please check your GPS settings and try again.", "details": str(e)}
 
 # --- Flask Routes ---
+@app.route("/api/health", methods=['GET'])
+def health_check():
+    """Simple health check endpoint"""
+    return jsonify({"status": "ok", "message": "Neo Recovery API is running"})
+
+@app.route("/api/debug", methods=['GET'])
+def debug_env():
+    """Debug endpoint to check environment variables"""
+    creds_json_str = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+    spreadsheet_id = os.environ.get('SPREADSHEET_ID')
+    
+    return jsonify({
+        "status": "debug",
+        "has_credentials": bool(creds_json_str),
+        "has_spreadsheet_id": bool(spreadsheet_id),
+        "spreadsheet_id": spreadsheet_id,
+        "credentials_length": len(creds_json_str) if creds_json_str else 0,
+        "all_env_vars": list(os.environ.keys())
+    })
+
 @app.route("/api/employees", methods=['GET', 'POST'])
 def handle_employees():
-    service, spreadsheet_id = get_sheets_service()
-    if request.method == 'GET':
-        data = get_employees(service, spreadsheet_id)
-        return jsonify(data)
-    elif request.method == 'POST':
-        body = request.get_json()
-        data = add_employee(service, spreadsheet_id, body.get('name'))
-        status = 400 if 'error' in data else 201
-        return jsonify(data), status
+    try:
+        print("DEBUG: Starting handle_employees")
+        service, spreadsheet_id = get_sheets_service()
+        print("DEBUG: Got sheets service")
+        
+        if request.method == 'GET':
+            print("DEBUG: Getting employees")
+            data = get_employees(service, spreadsheet_id)
+            print(f"DEBUG: Got employees data: {type(data)}")
+            return jsonify(data)
+        elif request.method == 'POST':
+            print("DEBUG: Adding employee")
+            body = request.get_json()
+            data = add_employee(service, spreadsheet_id, body.get('name'))
+            status = 400 if 'error' in data else 201
+            return jsonify(data), status
+    except Exception as e:
+        print(f"DEBUG: Error in handle_employees: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 @app.route("/api/employees/<int:employee_id>", methods=['PUT', 'DELETE'])
 def handle_employee(employee_id):
