@@ -13,6 +13,7 @@ from flask_cors import CORS
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 app = Flask(__name__)
 CORS(app) # Enable CORS for all routes
@@ -40,13 +41,90 @@ def get_sheets_service():
             creds_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'credentials.json')
             creds = service_account.Credentials.from_service_account_file(creds_path, scopes=SCOPES)
         
-        service = build('sheets', 'v4', credentials=creds)
+        # Disable discovery cache to avoid write attempts in serverless environments (prevents 500s)
+        service = build('sheets', 'v4', credentials=creds, cache_discovery=False)
         return service.spreadsheets(), spreadsheet_id
     except json.JSONDecodeError:
         raise ValueError("Failed to decode GOOGLE_CREDENTIALS_JSON")
     except Exception as e:
         # Re-raise other exceptions for better error visibility in Vercel logs
         raise e
+
+# --- Spreadsheet bootstrap helpers ---
+def create_employees_sheet(service, spreadsheet_id):
+    """Create Employees sheet with required headers if missing."""
+    try:
+        sheet_body = {
+            'requests': [{
+                'addSheet': {
+                    'properties': {
+                        'title': 'Employees'
+                    }
+                }
+            }]
+        }
+        try:
+            service.batchUpdate(spreadsheetId=spreadsheet_id, body=sheet_body).execute()
+        except Exception:
+            # Ignore if already exists
+            pass
+
+        headers = [['id', 'name', 'active']]
+        service.values().update(
+            spreadsheetId=spreadsheet_id,
+            range='Employees!A1',
+            valueInputOption='USER_ENTERED',
+            body={'values': headers}
+        ).execute()
+        return True
+    except Exception as e:
+        app.logger.error(f"Error creating Employees sheet: {e}")
+        return False
+
+def create_attendance_sheet(service, spreadsheet_id):
+    """Create Attendance sheet with required headers if missing."""
+    try:
+        sheet_body = {
+            'requests': [{
+                'addSheet': {
+                    'properties': {
+                        'title': 'Attendance'
+                    }
+                }
+            }]
+        }
+        try:
+            service.batchUpdate(spreadsheetId=spreadsheet_id, body=sheet_body).execute()
+        except Exception:
+            # Ignore if already exists
+            pass
+
+        headers = [['date', 'employee_id', 'employee_name', 'arrival_time', 'kiosk_id', 'logout_time']]
+        service.values().update(
+            spreadsheetId=spreadsheet_id,
+            range='Attendance!A1',
+            valueInputOption='USER_ENTERED',
+            body={'values': headers}
+        ).execute()
+        return True
+    except Exception as e:
+        app.logger.error(f"Error creating Attendance sheet: {e}")
+        return False
+
+def ensure_base_sheets(service, spreadsheet_id):
+    """Ensure core sheets exist with headers: Employees, Attendance."""
+    try:
+        try:
+            service.values().get(spreadsheetId=spreadsheet_id, range='Employees!A1').execute()
+        except Exception:
+            create_employees_sheet(service, spreadsheet_id)
+
+        try:
+            service.values().get(spreadsheetId=spreadsheet_id, range='Attendance!A1').execute()
+        except Exception:
+            create_attendance_sheet(service, spreadsheet_id)
+    except Exception as e:
+        app.logger.error(f"Error ensuring base sheets: {e}")
 
 # --- Error Handling ---
 @app.errorhandler(Exception)
@@ -752,6 +830,7 @@ def validate_location(latitude, longitude):
 def handle_employees():
     try:
         service, spreadsheet_id = get_sheets_service()
+        ensure_base_sheets(service, spreadsheet_id)
         if request.method == 'GET':
             data = get_employees(service, spreadsheet_id)
             # Ensure we always return an array for GET requests
@@ -786,6 +865,7 @@ def handle_employee(employee_id):
 @app.route("/api/attendance", methods=['POST'])
 def handle_attendance_post():
     service, spreadsheet_id = get_sheets_service()
+    ensure_base_sheets(service, spreadsheet_id)
     body = request.get_json()
     emp_id = body.get('employee_id')
     latitude = body.get('latitude')
@@ -803,6 +883,7 @@ def handle_attendance_post():
 @app.route("/api/logout", methods=['POST'])
 def handle_logout_post():
     service, spreadsheet_id = get_sheets_service()
+    ensure_base_sheets(service, spreadsheet_id)
     body = request.get_json()
     emp_id = body.get('employee_id')
     latitude = body.get('latitude')
@@ -820,6 +901,7 @@ def handle_logout_post():
 @app.route("/api/attendance", methods=['GET'])
 def handle_attendance_get():
     service, spreadsheet_id = get_sheets_service()
+    ensure_base_sheets(service, spreadsheet_id)
     view_type = request.args.get('view', 'month')
     
     if view_type == 'month':
@@ -853,6 +935,7 @@ def handle_attendance_today():
 @app.route("/api/attendance/session", methods=['GET', 'POST'])
 def handle_attendance_session():
     service, spreadsheet_id = get_sheets_service()
+    ensure_base_sheets(service, spreadsheet_id)
     
     if request.method == 'GET':
         device_id = request.args.get('device_id')
@@ -881,6 +964,7 @@ def handle_attendance_session():
 @app.route("/api/office-hours", methods=['GET', 'POST'])
 def handle_office_hours():
     service, spreadsheet_id = get_sheets_service()
+    ensure_base_sheets(service, spreadsheet_id)
     
     if request.method == 'GET':
         data = get_office_hours(service, spreadsheet_id)
