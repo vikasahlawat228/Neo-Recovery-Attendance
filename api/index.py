@@ -712,8 +712,7 @@ def validate_location(latitude, longitude):
     try:
         # Office locations (same as frontend)
         allowed_locations = [
-            {"lat": 12.9716, "lon": 77.5946, "radius": 50},
-            {"lat": 12.980768, "lon": 77.678600, "radius": 50}
+            {"lat": 28.678139, "lon": 77.106889, "radius": 50}
         ]
         
         def haversine_distance(lat1, lon1, lat2, lon2):
