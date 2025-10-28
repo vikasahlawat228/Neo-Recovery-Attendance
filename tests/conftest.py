@@ -133,8 +133,8 @@ def sample_device_id():
 def office_location():
     """Office location coordinates for testing."""
     return {
-        "lat": 28.678139,  # Actual office coordinates
-        "lon": 77.106889,
+        "lat": 28.6139,  # Delhi coordinates
+        "lon": 77.2090,
         "radius": 100  # 100 meters radius
     }
 
