@@ -750,15 +750,25 @@ def validate_location(latitude, longitude):
 # --- Flask Routes ---
 @app.route("/api/employees", methods=['GET', 'POST'])
 def handle_employees():
-    service, spreadsheet_id = get_sheets_service()
-    if request.method == 'GET':
-        data = get_employees(service, spreadsheet_id)
-        return jsonify(data)
-    elif request.method == 'POST':
-        body = request.get_json()
-        data = add_employee(service, spreadsheet_id, body.get('name'))
-        status = 400 if 'error' in data else 201
-        return jsonify(data), status
+    try:
+        service, spreadsheet_id = get_sheets_service()
+        if request.method == 'GET':
+            data = get_employees(service, spreadsheet_id)
+            # Ensure we always return an array for GET requests
+            if isinstance(data, dict) and 'error' in data:
+                return jsonify([]), 500
+            return jsonify(data)
+        elif request.method == 'POST':
+            body = request.get_json()
+            data = add_employee(service, spreadsheet_id, body.get('name'))
+            status = 400 if 'error' in data else 201
+            return jsonify(data), status
+    except Exception as e:
+        app.logger.error(f"Error in handle_employees: {e}")
+        if request.method == 'GET':
+            return jsonify([]), 500
+        else:
+            return jsonify({"ok": False, "error": "Internal server error"}), 500
 
 @app.route("/api/employees/<int:employee_id>", methods=['PUT', 'DELETE'])
 def handle_employee(employee_id):
