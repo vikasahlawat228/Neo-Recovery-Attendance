@@ -6,19 +6,18 @@ The issue was with your `vercel.json` configuration file. You were using the dep
 ## Changes Made
 
 ### 1. Updated `vercel.json`
-- Removed the deprecated `builds` field
-- Added `functions` field with proper Python runtime specification
+- Simplified configuration to let Vercel auto-detect Python functions
+- Removed explicit runtime specifications that were causing errors
 - Kept the routing configuration intact
 
-### 2. Fixed Configuration
+### 2. Added `api/requirements.txt`
+- Created a requirements.txt file in the api directory
+- This helps Vercel properly detect and install Python dependencies
+
+### 3. Fixed Configuration
 ```json
 {
   "version": 2,
-  "functions": {
-    "api/index.py": {
-      "runtime": "python3.12"
-    }
-  },
   "routes": [
     {
       "src": "/api/(.*)",
